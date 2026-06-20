@@ -1,0 +1,119 @@
+// prisma/schema.prisma
+// Central Hub Database — يجمع بيانات من كل الصيدليات
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── المستخدمون (لوحة التحكم / تطبيق الجوال) ──────────────────────────────
+model User {
+  id          Int      @id @default(autoincrement())
+  name        String
+  phone       String   @unique
+  isVerified  Boolean  @default(false)   // true بعد أول تحقق OTP ناجح
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("users")
+}
+
+// ─── الصيدليات المسجلة في النظام ───────────────────────────────────────────
+model Pharmacy {
+  id            Int      @id @default(autoincrement())
+  name          String
+  slug          String   @unique
+  webhookSecret String
+  apiKey        String   @unique
+  isActive      Boolean  @default(true)
+
+  latitude      Float?
+  longitude     Float?
+  address       String?
+  city          String?
+  phone         String?
+  workingHours  String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  stocks        PharmacyStock[]
+  webhookLogs   WebhookLog[]
+
+  @@map("pharmacies")
+}
+
+// ─── الدواء الموحّد (Master Medicine) ──────────────────────────────────────
+model MasterMedicine {
+  id             Int      @id @default(autoincrement())
+  barcode        String?  @unique
+  canonicalName  String
+  scientificName String?
+  category       String?
+  unit           String?
+  tabletsPerBox  Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  stocks         PharmacyStock[]
+  nameAliases    MedicineAlias[]
+
+  @@map("master_medicines")
+}
+
+// ─── أسماء بديلة لنفس الدواء ───────────────────────────────────────────────
+model MedicineAlias {
+  id               Int            @id @default(autoincrement())
+  masterMedicineId Int
+  masterMedicine   MasterMedicine @relation(fields: [masterMedicineId], references: [id])
+  aliasName        String
+  pharmacyId       Int?
+  localMedicineId  Int?
+  tradName         String?
+  createdAt        DateTime       @default(now())
+
+  @@unique([aliasName, pharmacyId])
+  @@map("medicine_aliases")
+}
+
+// ─── مخزون كل صيدلية لكل دواء ─────────────────────────────────────────────
+model PharmacyStock {
+  id               Int            @id @default(autoincrement())
+  pharmacyId       Int
+  pharmacy         Pharmacy       @relation(fields: [pharmacyId], references: [id])
+  masterMedicineId Int
+  masterMedicine   MasterMedicine @relation(fields: [masterMedicineId], references: [id])
+
+  quantity         Int            @default(0)
+  price            Decimal?       @db.Decimal(10, 2)
+  expiryDate       DateTime?
+  unit             String?
+  tabletsPerBox    Int?
+  localMedicineId  Int?
+
+  lastSyncAt       DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([pharmacyId, masterMedicineId])
+  @@map("pharmacy_stocks")
+}
+
+// ─── سجل كل webhook وارد ──────────────────────────────────────────────────
+model WebhookLog {
+  id             Int       @id @default(autoincrement())
+  pharmacyId     Int
+  pharmacy       Pharmacy  @relation(fields: [pharmacyId], references: [id])
+  eventType      String
+  rawPayload     Json
+  status         String    @default("pending")
+  errorMsg       String?
+  processedAt    DateTime?
+  idempotencyKey String?   @unique
+  createdAt      DateTime  @default(now())
+
+  @@map("webhook_logs")
+}

@@ -1,0 +1,1922 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Medicore Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+/* ══════════════════════════════════════════════════════════
+   DESIGN TOKENS
+══════════════════════════════════════════════════════════ */
+:root {
+  --bg:        #080d18;
+  --surface:   #0f1623;
+  --surface2:  #161e2e;
+  --surface3:  #1c2840;
+  --border:    #1e2d47;
+  --border2:   #263550;
+  --accent:    #3b82f6;
+  --accent2:   #06b6d4;
+  --success:   #10b981;
+  --warning:   #f59e0b;
+  --danger:    #ef4444;
+  --purple:    #8b5cf6;
+  --pink:      #ec4899;
+  --text:      #e2e8f0;
+  --text2:     #94a3b8;
+  --muted:     #4a5568;
+  --mono:      'IBM Plex Mono', monospace;
+  --sans:      'IBM Plex Sans Arabic', sans-serif;
+  --r:         10px;
+  --r-lg:      14px;
+  --sidebar-w: 228px;
+  --hdr:       58px;
+  --transition: .18s cubic-bezier(.4,0,.2,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;display:flex;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;font-family:var(--sans);border:none;background:none}
+input,select,textarea{font-family:var(--sans)}
+::selection{background:rgba(59,130,246,.3)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* ══════════════════════════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════════════════════════ */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; right: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 200;
+}
+.sidebar-logo {
+  padding: 22px 18px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.logo-text .brand { font-size: 16px; font-weight: 700; letter-spacing: -.3px; color: var(--text); }
+.logo-text .sub { font-size: 10px; color: var(--text2); margin-top: 1px; letter-spacing: .5px; }
+
+.nav { flex: 1; padding: 10px 10px; overflow-y: auto; }
+.nav-section { margin-bottom: 4px; }
+.nav-section-label {
+  font-size: 9.5px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1.2px;
+  padding: 10px 10px 5px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 8px;
+  font-size: 13px; font-weight: 500; color: var(--text2);
+  transition: var(--transition); cursor: pointer;
+  margin-bottom: 1px; width: 100%; text-align: right;
+  position: relative;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: rgba(59,130,246,.12); color: var(--accent); }
+.nav-item.active::before {
+  content: '';
+  position: absolute; right: 0; top: 6px; bottom: 6px;
+  width: 3px; border-radius: 2px 0 0 2px;
+  background: var(--accent);
+}
+.nav-icon { width: 32px; height: 32px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; background: var(--surface2); }
+.nav-item.active .nav-icon { background: rgba(59,130,246,.15); }
+.nav-badge {
+  margin-right: auto; background: var(--danger);
+  color: #fff; font-size: 10px; font-weight: 700;
+  padding: 2px 6px; border-radius: 20px; min-width: 18px; text-align: center;
+}
+.nav-badge.blue { background: rgba(59,130,246,.2); color: var(--accent); }
+
+.sidebar-user {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.user-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--purple), var(--pink));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0; color: #fff;
+}
+.user-info .name { font-size: 12px; font-weight: 600; }
+.user-info .role { font-size: 10px; color: var(--text2); }
+.user-logout { margin-right: auto; color: var(--text2); padding: 5px; border-radius: 6px; font-size: 14px; transition: var(--transition); }
+.user-logout:hover { color: var(--danger); background: rgba(239,68,68,.1); }
+
+/* ══════════════════════════════════════════════════════════
+   MAIN LAYOUT
+══════════════════════════════════════════════════════════ */
+.main {
+  flex: 1;
+  margin-right: var(--sidebar-w);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* TOPBAR */
+.topbar {
+  height: var(--hdr);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+  position: sticky; top: 0; z-index: 100;
+  gap: 14px;
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.page-breadcrumb { font-size: 11px; color: var(--text2); }
+.page-breadcrumb span { color: var(--text); font-weight: 600; font-size: 14px; display: block; margin-top: 1px; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+
+.search-global {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0 12px; width: 240px;
+  transition: var(--transition);
+}
+.search-global:focus-within { border-color: var(--accent); width: 300px; }
+.search-global input {
+  background: none; border: none; outline: none;
+  color: var(--text); font-size: 13px; padding: 8px 0; width: 100%;
+}
+.search-global .search-icon { color: var(--muted); font-size: 13px; }
+
+.topbar-btn {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text2); display: flex; align-items: center; justify-content: center;
+  font-size: 15px; transition: var(--transition); cursor: pointer; position: relative;
+}
+.topbar-btn:hover { color: var(--text); border-color: var(--border2); }
+.topbar-btn .notif-dot {
+  position: absolute; top: 5px; right: 5px;
+  width: 7px; height: 7px; background: var(--danger);
+  border-radius: 50%; border: 2px solid var(--surface);
+}
+
+/* PAGE CONTENT */
+.page-content { flex: 1; padding: 24px; overflow-y: auto; }
+.page { display: none; }
+.page.active { display: block; animation: fadeIn .2s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+/* ══════════════════════════════════════════════════════════
+   COMPONENTS
+══════════════════════════════════════════════════════════ */
+
+/* BUTTONS */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  transition: var(--transition); white-space: nowrap; cursor: pointer;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #2563eb; box-shadow: 0 0 20px rgba(59,130,246,.3); }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--border2); background: var(--surface3); }
+.btn-danger { background: rgba(239,68,68,.1); color: var(--danger); border: 1px solid rgba(239,68,68,.2); }
+.btn-danger:hover { background: rgba(239,68,68,.2); }
+.btn-success { background: rgba(16,185,129,.1); color: var(--success); border: 1px solid rgba(16,185,129,.2); }
+.btn-success:hover { background: rgba(16,185,129,.2); }
+.btn-ghost { background: none; color: var(--text2); padding: 6px 10px; }
+.btn-ghost:hover { color: var(--text); background: var(--surface2); }
+.btn-sm { padding: 5px 11px; font-size: 12px; }
+.btn-xs { padding: 3px 8px; font-size: 11px; border-radius: 6px; }
+.btn-icon { width: 32px; height: 32px; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); transition: var(--transition); }
+.btn-icon:hover { color: var(--text); border-color: var(--border2); }
+
+/* CARDS */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; }
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.card-title { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.card-subtitle { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+/* STAT CARDS */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap: 14px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+  position: relative; overflow: hidden;
+  transition: var(--transition);
+  cursor: default;
+}
+.stat-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+.stat-glow {
+  position: absolute; top: -20px; left: -20px;
+  width: 80px; height: 80px; border-radius: 50%;
+  opacity: .06; pointer-events: none;
+}
+.stat-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+.stat-icon-wrap {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.stat-trend { font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 3px; }
+.stat-trend.up { color: var(--success); }
+.stat-trend.down { color: var(--danger); }
+.stat-value { font-size: 26px; font-weight: 700; font-family: var(--mono); letter-spacing: -1px; line-height: 1; }
+.stat-label { font-size: 12px; color: var(--text2); margin-top: 5px; font-weight: 500; }
+
+/* TABLES */
+.table-wrap { overflow-x: auto; border-radius: var(--r); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  background: var(--surface2); padding: 10px 14px;
+  text-align: right; font-weight: 600; font-size: 11px;
+  color: var(--text2); white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase; letter-spacing: .5px;
+}
+tbody tr { border-bottom: 1px solid var(--border); transition: background var(--transition); }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--surface2); }
+td { padding: 11px 14px; vertical-align: middle; }
+.td-muted { color: var(--text2); font-size: 12px; }
+.td-mono { font-family: var(--mono); font-size: 12px; color: var(--text2); }
+
+/* BADGES */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600;
+}
+.badge-green  { background: rgba(16,185,129,.12); color: var(--success); }
+.badge-red    { background: rgba(239,68,68,.12);  color: var(--danger);  }
+.badge-amber  { background: rgba(245,158,11,.12); color: var(--warning); }
+.badge-blue   { background: rgba(59,130,246,.12); color: var(--accent);  }
+.badge-purple { background: rgba(139,92,246,.12); color: var(--purple);  }
+.badge-cyan   { background: rgba(6,182,212,.12);  color: var(--accent2); }
+.badge-gray   { background: rgba(100,116,139,.1); color: var(--text2);   }
+.badge-dot::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; display:inline-block; }
+
+/* FORM */
+.form-group { margin-bottom: 15px; }
+.form-label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+.form-input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 13px;
+  transition: var(--transition); outline: none;
+}
+.form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.1); }
+.form-input::placeholder { color: var(--muted); }
+.form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234a5568' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: left 12px center; padding-left: 32px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.form-hint { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.75);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; backdrop-filter: blur(6px);
+  animation: fadeIn .15s ease;
+}
+.modal {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--r-lg); width: 90%; max-width: 520px;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 25px 60px rgba(0,0,0,.6);
+  animation: modalIn .2s ease;
+}
+.modal-lg { max-width: 700px; }
+@keyframes modalIn { from{opacity:0;transform:scale(.96)translateY(10px)} to{opacity:1;transform:none} }
+.modal-header {
+  padding: 20px 22px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; background: var(--surface); z-index: 1;
+}
+.modal-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.modal-body { padding: 22px; }
+.modal-footer { padding: 16px 22px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+.modal-close { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--text2); font-size: 16px; transition: var(--transition); }
+.modal-close:hover { background: var(--surface2); color: var(--text); }
+
+/* TABS */
+.tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 18px; gap: 2px; }
+.tab {
+  padding: 9px 16px; font-size: 13px; font-weight: 500; color: var(--text2);
+  cursor: pointer; border-bottom: 2px solid transparent;
+  transition: var(--transition); background: none; border-top: none; border-left: none; border-right: none;
+  border-radius: 6px 6px 0 0;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(59,130,246,.05); }
+.tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
+
+/* MAP */
+#pharmacy-map { height: 340px; border-radius: var(--r); overflow: hidden; border: 1px solid var(--border); }
+.leaflet-container { background: #080d18 !important; }
+
+/* PAGINATION */
+.pagination { display: flex; gap: 4px; align-items: center; justify-content: flex-end; margin-top: 16px; }
+.page-btn {
+  padding: 6px 11px; border-radius: 7px; font-size: 12px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text2); cursor: pointer; transition: var(--transition);
+}
+.page-btn:hover { border-color: var(--accent); color: var(--accent); }
+.page-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.page-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+/* TOAST */
+.toast-wrap { position: fixed; bottom: 20px; left: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 10px; padding: 12px 16px; font-size: 13px;
+  display: flex; align-items: center; gap: 10px; min-width: 260px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  animation: slideUp .22s ease; pointer-events: all;
+}
+.toast.success { border-color: var(--success); }
+.toast.error   { border-color: var(--danger); }
+.toast.warning { border-color: var(--warning); }
+@keyframes slideUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+
+/* SPINNER */
+.spinner { display: inline-block; width: 15px; height: 15px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .5s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+.page-loader { display: flex; align-items: center; justify-content: center; padding: 60px; }
+
+/* EMPTY */
+.empty { text-align: center; padding: 50px 20px; color: var(--text2); }
+.empty-icon { font-size: 36px; margin-bottom: 10px; opacity: .4; }
+.empty p { font-size: 13px; }
+.empty small { font-size: 12px; color: var(--muted); margin-top: 4px; display: block; }
+
+/* KEY BOX */
+.key-box {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 12px;
+  font-family: var(--mono); font-size: 11.5px;
+  display: flex; align-items: center; gap: 8px; word-break: break-all;
+}
+.key-box span { flex: 1; color: var(--text2); }
+
+/* AVATAR */
+.avatar {
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; flex-shrink: 0; color: #fff;
+}
+.avatar-sm { width: 30px; height: 30px; font-size: 11px; }
+.avatar-md { width: 38px; height: 38px; font-size: 14px; }
+.avatar-lg { width: 50px; height: 50px; font-size: 18px; }
+
+/* PROGRESS BAR */
+.progress { background: var(--surface2); border-radius: 20px; height: 6px; overflow: hidden; }
+.progress-bar { height: 100%; border-radius: 20px; transition: width .5s ease; }
+
+/* EVENT TYPE COLORS */
+.ev-sale         { color: #f472b6; }
+.ev-stock_added  { color: var(--success); }
+.ev-stock_removed{ color: var(--danger); }
+.ev-return       { color: var(--accent2); }
+.ev-shortage     { color: var(--warning); }
+.ev-stock_update { color: var(--purple); }
+
+/* DIVIDER */
+.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .sidebar { display: none; }
+  .main { margin-right: 0; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
+}
+@media(max-width:600px){
+  .stats-row { grid-template-columns: 1fr; }
+  .page-content { padding: 14px; }
+  .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">⚕</div>
+    <div class="logo-text">
+      <div class="brand">Medicore</div>
+      <div class="sub">ADMIN PANEL</div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <div class="nav-section">
+      <div class="nav-section-label">الرئيسية</div>
+      <button class="nav-item active" onclick="navigate('overview')">
+        <span class="nav-icon">📊</span> نظرة عامة
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">المستخدمون</div>
+      <button class="nav-item" onclick="navigate('users')">
+        <span class="nav-icon">👥</span> المستخدمون
+        <span class="nav-badge blue" id="nav-users-count">—</span>
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">الصيدليات</div>
+      <button class="nav-item" onclick="navigate('pharmacies')">
+        <span class="nav-icon">🏥</span> الصيدليات
+      </button>
+      <button class="nav-item" onclick="navigate('map')">
+        <span class="nav-icon">🗺️</span> الخريطة
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">المخزون</div>
+      <button class="nav-item" onclick="navigate('medicines')">
+        <span class="nav-icon">💊</span> الأدوية
+      </button>
+      <button class="nav-item" onclick="navigate('lowstock')">
+        <span class="nav-icon">⚠️</span> مخزون منخفض
+        <span class="nav-badge" id="nav-lowstock-count" style="display:none"></span>
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">النظام</div>
+      <button class="nav-item" onclick="navigate('webhooks')">
+        <span class="nav-icon">🔗</span> سجل الأحداث
+      </button>
+      <button class="nav-item" onclick="navigate('settings')">
+        <span class="nav-icon">⚙️</span> الإعدادات
+      </button>
+    </div>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="avatar avatar-sm" style="background:linear-gradient(135deg,var(--purple),var(--pink))">م</div>
+    <div class="user-info">
+      <div class="name">مدير النظام</div>
+      <div class="role">Super Admin</div>
+    </div>
+    <button class="user-logout" title="تسجيل الخروج" onclick="toast('تم تسجيل الخروج','warning')">⎋</button>
+  </div>
+</aside>
+
+<!-- ═══════════════════════ MAIN ═══════════════════════ -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="page-breadcrumb">Medicore Admin</div>
+        <span class="page-breadcrumb" id="page-title"><span>نظرة عامة</span></span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="search-global">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="بحث سريع..." id="global-search" oninput="globalSearch(this.value)"/>
+      </div>
+      <button class="topbar-btn" onclick="refreshPage()" title="تحديث">↻</button>
+      <button class="topbar-btn" onclick="navigate('lowstock')" title="تنبيهات">
+        🔔<span class="notif-dot" id="notif-dot" style="display:none"></span>
+      </button>
+      <button class="btn btn-primary btn-sm" onclick="openQuickAction()">+ إجراء</button>
+    </div>
+  </div>
+
+  <div class="page-content">
+
+    <!-- ══════════ PAGE: OVERVIEW ══════════ -->
+    <div class="page active" id="page-overview">
+      <div class="stats-row" id="stats-row">
+        <div class="stat-card"><div class="page-loader"><div class="spinner"></div></div></div>
+        <div class="stat-card"></div>
+        <div class="stat-card"></div>
+        <div class="stat-card"></div>
+        <div class="stat-card"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:18px">
+        <!-- Activity Feed -->
+        <div class="card" style="grid-column:span 2">
+          <div class="card-header">
+            <div>
+              <div class="card-title">⚡ آخر الأحداث</div>
+              <div class="card-subtitle">النشاط في آخر 24 ساعة</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="navigate('webhooks')">عرض الكل ←</button>
+          </div>
+          <div id="overview-activity"></div>
+        </div>
+
+        <!-- Top Medicines -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🏆 أكثر انتشاراً</div>
+          </div>
+          <div id="overview-top-meds"></div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px">
+        <!-- Pharmacies Table -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🏥 الصيدليات</div>
+            <button class="btn btn-ghost btn-sm" onclick="navigate('pharmacies')">عرض الكل ←</button>
+          </div>
+          <div class="table-wrap" style="border:none">
+            <table>
+              <thead><tr>
+                <th>الصيدلية</th><th>الأصناف</th><th>المزامنة</th><th>الحالة</th>
+              </tr></thead>
+              <tbody id="overview-pharmacies-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Users Overview -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">👥 آخر المستخدمين</div>
+            <button class="btn btn-ghost btn-sm" onclick="navigate('users')">عرض الكل ←</button>
+          </div>
+          <div id="overview-users-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ PAGE: USERS ══════════ -->
+    <div class="page" id="page-users">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;align-items:center;flex:1">
+          <div class="search-global" style="max-width:320px">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="ابحث بالاسم أو الهاتف..." id="user-search" oninput="debounce(()=>loadUsers(1), 400)()"/>
+          </div>
+          <select class="form-input form-select" style="width:150px" id="user-filter-verified" onchange="loadUsers(1)">
+            <option value="">كل المستخدمين</option>
+            <option value="true">مُتحقق منهم</option>
+            <option value="false">غير مُتحققين</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <span id="users-count-label" style="font-size:12px;color:var(--text2);align-self:center"></span>
+          <button class="btn btn-primary btn-sm" onclick="openAddUser()">+ مستخدم جديد</button>
+        </div>
+      </div>
+
+      <!-- Stats row for users -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px" id="user-stats-row"></div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>المستخدم</th>
+            <th>رقم الهاتف</th>
+            <th>التحقق</th>
+            <th>تاريخ التسجيل</th>
+            <th>آخر نشاط</th>
+            <th>الإجراءات</th>
+          </tr></thead>
+          <tbody id="users-tbody">
+            <tr><td colspan="6" class="page-loader"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" id="users-pagination"></div>
+    </div>
+
+    <!-- ══════════ PAGE: PHARMACIES ══════════ -->
+    <div class="page" id="page-pharmacies">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;flex:1">
+          <div class="search-global" style="max-width:300px">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="ابحث عن صيدلية..." id="ph-search" oninput="filterPharmacies(this.value)"/>
+          </div>
+          <select class="form-input form-select" style="width:140px" id="ph-filter-city" onchange="filterPharmacies(document.getElementById('ph-search').value)">
+            <option value="">كل المدن</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openAddPharmacy()">+ إضافة صيدلية</button>
+      </div>
+      <div id="pharmacies-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px"></div>
+    </div>
+
+    <!-- ══════════ PAGE: PHARMACY DETAIL ══════════ -->
+    <div class="page" id="page-pharmacy-detail">
+      <button class="btn btn-ghost btn-sm" onclick="navigate('pharmacies')" style="margin-bottom:18px">← رجوع</button>
+      <div id="pharmacy-detail-content"></div>
+    </div>
+
+    <!-- ══════════ PAGE: MAP ══════════ -->
+    <div class="page" id="page-map">
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header">
+          <div>
+            <div class="card-title">🗺️ خريطة الصيدليات</div>
+            <div class="card-subtitle" id="map-subtitle">جاري التحميل...</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)"><span style="width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block"></span> نشطة</span>
+            <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)"><span style="width:10px;height:10px;border-radius:50%;background:var(--muted);display:inline-block"></span> معطلة</span>
+          </div>
+        </div>
+        <div id="pharmacy-map"></div>
+      </div>
+      <div id="map-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px"></div>
+    </div>
+
+    <!-- ══════════ PAGE: MEDICINES ══════════ -->
+    <div class="page" id="page-medicines">
+      <div style="display:flex;gap:10px;margin-bottom:18px;align-items:center;flex-wrap:wrap">
+        <div class="search-global" style="max-width:360px">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="ابحث بالاسم أو الباركود..." id="med-search" oninput="debounce(()=>loadMedicines(1), 400)()"/>
+        </div>
+        <select class="form-input form-select" style="width:160px" id="med-filter-cat" onchange="loadMedicines(1)">
+          <option value="">كل التصنيفات</option>
+        </select>
+        <span id="med-count" style="font-size:12px;color:var(--text2);margin-right:auto"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>الدواء</th><th>الباركود</th><th>التصنيف</th>
+            <th>إجمالي الكمية</th><th>متوفر في</th><th>الوحدة</th>
+          </tr></thead>
+          <tbody id="medicines-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="med-pagination"></div>
+    </div>
+
+    <!-- ══════════ PAGE: LOW STOCK ══════════ -->
+    <div class="page" id="page-lowstock">
+      <div style="display:flex;gap:10px;margin-bottom:18px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:13px;color:var(--text2);white-space:nowrap">حد المخزون:</label>
+        <input type="number" id="low-threshold" value="10" min="1" max="999" class="form-input" style="width:80px" onchange="loadLowStock()"/>
+        <span id="low-count" style="font-size:12px;color:var(--danger);font-weight:600"></span>
+        <select class="form-input form-select" style="width:180px" id="low-ph-filter" onchange="loadLowStock()">
+          <option value="">كل الصيدليات</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>الدواء</th><th>الصيدلية</th><th>الكمية</th>
+            <th>الباركود</th><th>التصنيف</th><th>آخر مزامنة</th>
+          </tr></thead>
+          <tbody id="lowstock-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══════════ PAGE: WEBHOOKS ══════════ -->
+    <div class="page" id="page-webhooks">
+      <div style="display:flex;gap:10px;margin-bottom:18px;align-items:center;flex-wrap:wrap">
+        <select class="form-input form-select" style="width:200px" id="wh-filter-ph" onchange="loadWebhooks(1)">
+          <option value="">كل الصيدليات</option>
+        </select>
+        <select class="form-input form-select" style="width:160px" id="wh-filter-status" onchange="loadWebhooks(1)">
+          <option value="">كل الحالات</option>
+          <option value="processed">ناجحة</option>
+          <option value="failed">فاشلة</option>
+          <option value="pending">قيد الانتظار</option>
+        </select>
+        <span id="wh-count" style="font-size:12px;color:var(--text2);margin-right:auto"></span>
+        <button class="btn btn-ghost btn-sm" onclick="loadWebhooks(1)">↻ تحديث</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>الصيدلية</th><th>نوع الحدث</th><th>الحالة</th><th>الأدوية</th><th>الوقت</th><th>خطأ</th>
+          </tr></thead>
+          <tbody id="webhooks-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="wh-pagination"></div>
+    </div>
+
+    <!-- ══════════ PAGE: SETTINGS ══════════ -->
+    <div class="page" id="page-settings">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <!-- System Info -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">⚙️ معلومات النظام</div></div>
+          <div id="settings-info">
+            <div class="page-loader"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="card" style="border-color:rgba(239,68,68,.2)">
+          <div class="card-header"><div class="card-title" style="color:var(--danger)">⚠️ منطقة الخطر</div></div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="padding:14px;background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.15);border-radius:8px">
+              <div style="font-size:13px;font-weight:600;margin-bottom:4px">مسح الأحداث القديمة</div>
+              <div style="font-size:12px;color:var(--text2);margin-bottom:10px">حذف سجلات الـ webhooks الأقدم من 30 يوماً</div>
+              <button class="btn btn-danger btn-sm" onclick="toast('هذه الميزة غير متاحة في الوضع التجريبي','warning')">مسح الأحداث القديمة</button>
+            </div>
+            <div style="padding:14px;background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.15);border-radius:8px">
+              <div style="font-size:13px;font-weight:600;margin-bottom:4px">إعادة ضبط المخزون</div>
+              <div style="font-size:12px;color:var(--text2);margin-bottom:10px">مسح كل بيانات المخزون من جميع الصيدليات</div>
+              <button class="btn btn-danger btn-sm" onclick="toast('هذه الميزة غير متاحة في الوضع التجريبي','warning')">إعادة الضبط</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- API Status -->
+        <div class="card" style="grid-column:span 2">
+          <div class="card-header"><div class="card-title">🔌 حالة الـ API</div></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px" id="api-status-grid">
+            <div class="page-loader"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-content -->
+</div><!-- /main -->
+
+<!-- ═══════ TOAST ═══════ -->
+<div class="toast-wrap" id="toasts"></div>
+
+<!-- ═══════ MODAL: ADD/EDIT USER ═══════ -->
+<div class="modal-overlay" id="modal-user" style="display:none" onclick="closeOverlay(event,this)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">👤 <span id="modal-user-title">مستخدم جديد</span></div>
+      <button class="modal-close" onclick="closeModal('modal-user')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="u-edit-id"/>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">الاسم الكامل *</label>
+          <input type="text" class="form-input" id="u-name" placeholder="محمود أحمد"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">رقم الهاتف *</label>
+          <input type="text" class="form-input" id="u-phone" placeholder="+249912345678" dir="ltr"/>
+          <div class="form-hint">صيغة دولية تبدأ بـ +</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">حالة التحقق</label>
+        <select class="form-input form-select" id="u-verified">
+          <option value="false">غير مُتحقق</option>
+          <option value="true">مُتحقق ✓</option>
+        </select>
+      </div>
+      <div id="u-otp-section" style="display:none">
+        <hr class="divider"/>
+        <div style="padding:12px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:8px;font-size:12px;color:var(--accent)">
+          💡 عند الحفظ سيُرسَل OTP لرقم الهاتف للتحقق من الحساب
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-user')">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveUser()">
+        <span id="u-spinner" style="display:none" class="spinner"></span>
+        حفظ
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL: USER DETAIL ═══════ -->
+<div class="modal-overlay" id="modal-user-detail" style="display:none" onclick="closeOverlay(event,this)">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">👤 تفاصيل المستخدم</div>
+      <button class="modal-close" onclick="closeModal('modal-user-detail')">✕</button>
+    </div>
+    <div class="modal-body" id="user-detail-body">
+      <div class="page-loader"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL: ADD/EDIT PHARMACY ═══════ -->
+<div class="modal-overlay" id="modal-pharmacy" style="display:none" onclick="closeOverlay(event,this)">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">🏥 <span id="ph-modal-title">إضافة صيدلية</span></div>
+      <button class="modal-close" onclick="closeModal('modal-pharmacy')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ph-edit-id"/>
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab(this,'tab-basic')">المعلومات</button>
+        <button class="tab" onclick="switchTab(this,'tab-location')">الموقع</button>
+        <button class="tab" onclick="switchTab(this,'tab-contact')">التواصل</button>
+      </div>
+      <div id="tab-basic">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">اسم الصيدلية *</label>
+            <input type="text" class="form-input" id="ph-name" placeholder="صيدلية الأندلس"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">المعرّف Slug *</label>
+            <input type="text" class="form-input" id="ph-slug" placeholder="pharmacy-atbara-1" dir="ltr"/>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">المدينة</label>
+            <input type="text" class="form-input" id="ph-city" placeholder="عطبرة"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ساعات العمل</label>
+            <input type="text" class="form-input" id="ph-hours" placeholder="08:00-22:00"/>
+          </div>
+        </div>
+      </div>
+      <div id="tab-location" style="display:none">
+        <div class="form-group">
+          <label class="form-label">العنوان</label>
+          <input type="text" class="form-input" id="ph-address" placeholder="شارع الدكاترة"/>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">خط العرض (Lat)</label>
+            <input type="number" class="form-input" id="ph-lat" placeholder="17.7039" step="any" dir="ltr"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">خط الطول (Lng)</label>
+            <input type="number" class="form-input" id="ph-lng" placeholder="33.9932" step="any" dir="ltr"/>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px">💡 انقر على الخريطة لتحديد الموقع تلقائياً</div>
+        <div id="mini-map" style="height:200px;border-radius:8px;border:1px solid var(--border);overflow:hidden"></div>
+      </div>
+      <div id="tab-contact" style="display:none">
+        <div class="form-group">
+          <label class="form-label">رقم الهاتف</label>
+          <input type="text" class="form-input" id="ph-phone" placeholder="+249912345678" dir="ltr"/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-pharmacy')">إلغاء</button>
+      <button class="btn btn-primary" onclick="savePharmacy()">
+        <span id="ph-spinner" style="display:none" class="spinner"></span>حفظ
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL: API KEY ═══════ -->
+<div class="modal-overlay" id="modal-apikey" style="display:none" onclick="closeOverlay(event,this)">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <div class="modal-title">🔑 مفاتيح الصيدلية</div>
+      <button class="modal-close" onclick="closeModal('modal-apikey')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Webhook URL</label>
+        <div class="key-box"><span id="key-url"></span></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">API Key</label>
+        <div class="key-box">
+          <span id="key-apikey"></span>
+          <button class="btn btn-xs btn-secondary" onclick="copyText('key-apikey')">نسخ</button>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:10px 12px;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.18);border-radius:8px;font-size:12px;color:var(--warning)">
+        ⚠️ احتفظ بهذا المفتاح في مكان آمن ولا تشاركه مع أحد.
+      </div>
+      <div style="margin-top:12px;text-align:left">
+        <button class="btn btn-danger btn-sm" onclick="confirmAction('إعادة توليد المفتاح ستُبطل المفتاح القديم فوراً. هل تريد المتابعة?', regenKey)">🔄 إعادة توليد</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL: CONFIRM ═══════ -->
+<div class="modal-overlay" id="modal-confirm" style="display:none" onclick="closeOverlay(event,this)">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-title">⚠️ تأكيد الإجراء</div>
+      <button class="modal-close" onclick="closeModal('modal-confirm')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-msg" style="font-size:13px;line-height:1.7;color:var(--text2)"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-confirm')">إلغاء</button>
+      <button class="btn btn-danger" id="confirm-ok">تأكيد</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL: QUICK ACTION ═══════ -->
+<div class="modal-overlay" id="modal-quick" style="display:none" onclick="closeOverlay(event,this)">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <div class="modal-title">⚡ إجراء سريع</div>
+      <button class="modal-close" onclick="closeModal('modal-quick')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-secondary" style="justify-content:flex-start;gap:10px;padding:12px 14px" onclick="closeModal('modal-quick');openAddUser()"><span style="font-size:18px">👤</span><div style="text-align:right"><div style="font-weight:600">مستخدم جديد</div><div style="font-size:11px;color:var(--text2)">إضافة مستخدم للنظام</div></div></button>
+      <button class="btn btn-secondary" style="justify-content:flex-start;gap:10px;padding:12px 14px" onclick="closeModal('modal-quick');openAddPharmacy()"><span style="font-size:18px">🏥</span><div style="text-align:right"><div style="font-weight:600">صيدلية جديدة</div><div style="font-size:11px;color:var(--text2)">تسجيل صيدلية في النظام</div></div></button>
+      <button class="btn btn-secondary" style="justify-content:flex-start;gap:10px;padding:12px 14px" onclick="closeModal('modal-quick');navigate('lowstock')"><span style="font-size:18px">⚠️</span><div style="text-align:right"><div style="font-weight:600">مخزون منخفض</div><div style="font-size:11px;color:var(--text2)">عرض الأصناف الحرجة</div></div></button>
+      <button class="btn btn-secondary" style="justify-content:flex-start;gap:10px;padding:12px 14px" onclick="closeModal('modal-quick');navigate('webhooks')"><span style="font-size:18px">🔗</span><div style="text-align:right"><div style="font-weight:600">سجل الأحداث</div><div style="font-size:11px;color:var(--text2)">مراقبة أحداث الصيدليات</div></div></button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+const API = '/api/dashboard';
+let currentPage = 'overview';
+let allPharmacies = [];
+let allUsers = [];
+let mapInst = null;
+let miniMapInst = null;
+let currentKeyPhId = null;
+let medPage = 1, whPage = 1, usersPage = 1;
+
+/* ════════════════════════════════════════
+   DEBOUNCE UTIL
+════════════════════════════════════════ */
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+/* ════════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════════ */
+const PAGE_TITLES = {
+  overview:'نظرة عامة', users:'المستخدمون', pharmacies:'الصيدليات',
+  'pharmacy-detail':'تفاصيل الصيدلية', map:'الخريطة',
+  medicines:'الأدوية', lowstock:'مخزون منخفض',
+  webhooks:'سجل الأحداث', settings:'الإعدادات',
+};
+
+function navigate(page, params={}) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  currentPage = page;
+  const el = document.getElementById('page-' + page);
+  if (el) el.classList.add('active');
+  // highlight nav
+  document.querySelectorAll('.nav-item').forEach(n => {
+    const txt = n.textContent.trim();
+    const label = PAGE_TITLES[page] || '';
+    if (label && txt.includes(label.slice(0,3))) n.classList.add('active');
+  });
+  document.getElementById('page-title').innerHTML = `<span>${PAGE_TITLES[page] || page}</span>`;
+  loadPageData(page, params);
+}
+
+function refreshPage() { loadPageData(currentPage); }
+
+function loadPageData(page, params={}) {
+  switch(page) {
+    case 'overview':         loadOverview(); break;
+    case 'users':            loadUsers(1); break;
+    case 'pharmacies':       loadPharmacies(); break;
+    case 'pharmacy-detail':  loadPharmacyDetail(params.id); break;
+    case 'map':              loadMap(); break;
+    case 'medicines':        loadMedicines(1); break;
+    case 'lowstock':         loadLowStock(); break;
+    case 'webhooks':         loadWebhooks(1); break;
+    case 'settings':         loadSettings(); break;
+  }
+}
+
+/* ════════════════════════════════════════
+   API HELPER
+════════════════════════════════════════ */
+async function api(path, opts={}) {
+  try {
+    const res = await fetch(API + path, {
+      headers: {'Content-Type':'application/json'},
+      ...opts,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || `HTTP ${res.status}`);
+    }
+    return res.json();
+  } catch(e) {
+    toast(e.message || 'خطأ في الاتصال', 'error');
+    throw e;
+  }
+}
+
+/* ════════════════════════════════════════
+   OVERVIEW
+════════════════════════════════════════ */
+async function loadOverview() {
+  try {
+    const [stats, phData, logsData, usersData] = await Promise.all([
+      api('/stats'),
+      api('/pharmacies'),
+      api('/webhook-logs?page=1'),
+      api('/users?page=1&limit=5'),
+    ]);
+    allPharmacies = phData;
+    allUsers = usersData.data || [];
+
+    // update nav badges
+    document.getElementById('nav-users-count').textContent = usersData.total || '—';
+    if (stats.stock?.low_stock > 0) {
+      const badge = document.getElementById('nav-lowstock-count');
+      badge.textContent = stats.stock.low_stock;
+      badge.style.display = '';
+      document.getElementById('notif-dot').style.display = '';
+    }
+
+    renderOverviewStats(stats, usersData.total || 0);
+    renderActivity(logsData.logs || []);
+    renderTopMeds(stats.top_medicines || []);
+    renderOverviewPharmacies(phData);
+    renderOverviewUsers(allUsers);
+    populateFilters(phData);
+  } catch(e) { /* already toasted */ }
+}
+
+function renderOverviewStats(s, totalUsers) {
+  const cards = [
+    { icon:'🏥', val: s.pharmacies?.total ?? 0, label:'الصيدليات', sub:`${s.pharmacies?.active ?? 0} نشطة`, color:'var(--accent)', bg:'rgba(59,130,246,.08)' },
+    { icon:'👥', val: totalUsers, label:'المستخدمون', sub:'مسجّلون في النظام', color:'var(--purple)', bg:'rgba(139,92,246,.08)' },
+    { icon:'💊', val: (s.medicines?.total ?? 0).toLocaleString(), label:'أصناف الأدوية', sub:'في القاعدة المركزية', color:'var(--accent2)', bg:'rgba(6,182,212,.08)' },
+    { icon:'📦', val: (s.stock?.total_units ?? 0).toLocaleString(), label:'إجمالي الوحدات', sub: s.stock?.low_stock > 0 ? `⚠️ ${s.stock.low_stock} صنف منخفض` : 'المخزون الكلي', color:'var(--success)', bg:'rgba(16,185,129,.08)', subColor: s.stock?.low_stock > 0 ? 'var(--warning)' : undefined },
+    { icon:'🔗', val: s.webhooks_24h ?? 0, label:'أحداث اليوم', sub:'آخر 24 ساعة', color:'var(--pink)', bg:'rgba(236,72,153,.08)' },
+  ];
+  document.getElementById('stats-row').innerHTML = cards.map(c => `
+    <div class="stat-card">
+      <div class="stat-glow" style="background:${c.color}"></div>
+      <div class="stat-header">
+        <div class="stat-icon-wrap" style="background:${c.bg};color:${c.color}">${c.icon}</div>
+      </div>
+      <div class="stat-value" style="color:${c.color}">${c.val}</div>
+      <div class="stat-label">${c.label}</div>
+      <div style="font-size:11px;margin-top:5px;color:${c.subColor || 'var(--text2)'}">
+        ${c.sub}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderActivity(logs) {
+  document.getElementById('overview-activity').innerHTML = logs.length
+    ? logs.slice(0,8).map(l => `
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+        <div style="width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--surface2);flex-shrink:0">
+          ${evIcon(l.eventType)}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600" class="ev-${l.eventType}">${eventLabel(l.eventType)}</div>
+          <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.pharmacy?.name || '—'}</div>
+        </div>
+        <div style="text-align:left;flex-shrink:0">
+          <span class="badge ${statusBadge(l.status)}">${l.status}</span>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">${timeAgo(l.createdAt)}</div>
+        </div>
+      </div>
+    `).join('')
+    : '<div class="empty"><div class="empty-icon">🔗</div><p>لا توجد أحداث بعد</p></div>';
+}
+
+function renderTopMeds(list) {
+  document.getElementById('overview-top-meds').innerHTML = list.length
+    ? list.map((m,i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+        <span style="width:22px;height:22px;border-radius:50%;background:rgba(59,130,246,.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${i+1}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}</div>
+          <div style="font-size:10px;color:var(--text2)">${m.available_in} صيدلية</div>
+        </div>
+        <span class="badge badge-blue" style="font-size:10px">${m.total_qty}</span>
+      </div>
+    `).join('')
+    : '<div class="empty"><p>لا بيانات</p></div>';
+}
+
+function renderOverviewPharmacies(list) {
+  document.getElementById('overview-pharmacies-tbody').innerHTML = list.slice(0,6).map(p => `
+    <tr style="cursor:pointer" onclick="navigate('pharmacy-detail',{id:${p.id}})">
+      <td>
+        <div style="font-weight:600;font-size:13px">${p.name}</div>
+        <div style="font-size:11px;color:var(--text2)">${p.city || '—'}</div>
+      </td>
+      <td><span class="badge badge-blue">${p._count?.stocks || 0}</span></td>
+      <td class="td-muted">${timeAgo(p.updatedAt)}</td>
+      <td><span class="badge ${p.isActive ? 'badge-green' : 'badge-gray'} badge-dot">${p.isActive ? 'نشطة' : 'معطلة'}</span></td>
+    </tr>
+  `).join('') || '<tr><td colspan="4" class="empty"><p>لا توجد صيدليات</p></td></tr>';
+}
+
+function renderOverviewUsers(list) {
+  document.getElementById('overview-users-list').innerHTML = list.length
+    ? list.map(u => `
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openUserDetail(${u.id})">
+        <div class="avatar avatar-sm" style="background:${avatarColor(u.name)}">${u.name?.charAt(0) || '?'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600">${u.name}</div>
+          <div style="font-size:11px;color:var(--text2);direction:ltr;text-align:right">${u.phone}</div>
+        </div>
+        <span class="badge ${u.isVerified ? 'badge-green' : 'badge-amber'}">${u.isVerified ? '✓' : '؟'}</span>
+      </div>
+    `).join('')
+    : '<div class="empty"><div class="empty-icon">👥</div><p>لا مستخدمين بعد</p></div>';
+}
+
+/* ════════════════════════════════════════
+   USERS PAGE
+════════════════════════════════════════ */
+async function loadUsers(page = 1) {
+  usersPage = page;
+  const search   = document.getElementById('user-search')?.value || '';
+  const verified = document.getElementById('user-filter-verified')?.value || '';
+  let url = `/users?page=${page}&limit=15`;
+  if (search)   url += `&search=${encodeURIComponent(search)}`;
+  if (verified) url += `&isVerified=${verified}`;
+
+  try {
+    const data = await api(url);
+    const list = data.data || data;
+    const total = data.total || list.length;
+
+    document.getElementById('users-count-label').textContent = `${total.toLocaleString()} مستخدم`;
+
+    // User stats cards
+    const verified_count = list.filter(u => u.isVerified).length;
+    document.getElementById('user-stats-row').innerHTML = `
+      <div class="stat-card" style="padding:14px 16px">
+        <div style="font-size:20px;font-weight:700;color:var(--accent);font-family:var(--mono)">${total}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">إجمالي المستخدمين</div>
+      </div>
+      <div class="stat-card" style="padding:14px 16px">
+        <div style="font-size:20px;font-weight:700;color:var(--success);font-family:var(--mono)">${data.verified_count ?? verified_count}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">مُتحقق منهم</div>
+      </div>
+      <div class="stat-card" style="padding:14px 16px">
+        <div style="font-size:20px;font-weight:700;color:var(--warning);font-family:var(--mono)">${data.unverified_count ?? (total - (data.verified_count ?? verified_count))}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">غير مُتحققين</div>
+      </div>
+      <div class="stat-card" style="padding:14px 16px">
+        <div style="font-size:20px;font-weight:700;color:var(--accent2);font-family:var(--mono)">${data.new_today ?? '—'}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">مستخدمون اليوم</div>
+      </div>
+    `;
+
+    document.getElementById('users-tbody').innerHTML = list.length
+      ? list.map(u => `
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="avatar avatar-sm" style="background:${avatarColor(u.name)}">${u.name?.charAt(0) || '?'}</div>
+              <div>
+                <div style="font-weight:600;font-size:13px">${u.name}</div>
+                <div style="font-size:10px;color:var(--muted)">#${u.id}</div>
+              </div>
+            </div>
+          </td>
+          <td class="td-mono" dir="ltr">${u.phone}</td>
+          <td>
+            <span class="badge ${u.isVerified ? 'badge-green badge-dot' : 'badge-amber badge-dot'}">
+              ${u.isVerified ? 'مُتحقق' : 'معلّق'}
+            </span>
+          </td>
+          <td class="td-muted">${formatDate(u.createdAt)}</td>
+          <td class="td-muted">${timeAgo(u.updatedAt || u.createdAt)}</td>
+          <td>
+            <div style="display:flex;gap:5px">
+              <button class="btn btn-xs btn-secondary" onclick="openUserDetail(${u.id})">عرض</button>
+              <button class="btn btn-xs btn-secondary" onclick="openEditUser(${u.id})">تعديل</button>
+              ${!u.isVerified ? `<button class="btn btn-xs btn-success" onclick="sendUserOtp(${u.id},'${u.phone}')">OTP ↗</button>` : ''}
+              <button class="btn btn-xs btn-danger" onclick="confirmAction('هل تريد حذف هذا المستخدم؟ لا يمكن التراجع.', ()=>deleteUser(${u.id}))">حذف</button>
+            </div>
+          </td>
+        </tr>
+      `).join('')
+      : '<tr><td colspan="6"><div class="empty"><div class="empty-icon">👥</div><p>لا توجد نتائج</p></div></td></tr>';
+
+    const totalPages = data.total_pages || Math.ceil(total / 15);
+    renderPagination('users-pagination', page, totalPages, p => loadUsers(p));
+  } catch(e) {}
+}
+
+async function openUserDetail(id) {
+  document.getElementById('user-detail-body').innerHTML = '<div class="page-loader"><div class="spinner"></div></div>';
+  document.getElementById('modal-user-detail').style.display = 'flex';
+  try {
+    const u = await api(`/users/${id}`);
+    document.getElementById('user-detail-body').innerHTML = `
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;background:var(--surface2);border-radius:10px">
+        <div class="avatar avatar-lg" style="background:${avatarColor(u.name)}">${u.name?.charAt(0)}</div>
+        <div>
+          <div style="font-size:18px;font-weight:700">${u.name}</div>
+          <div style="font-size:13px;color:var(--text2);direction:ltr;margin-top:2px">${u.phone}</div>
+          <div style="margin-top:6px">
+            <span class="badge ${u.isVerified ? 'badge-green' : 'badge-amber'} badge-dot">${u.isVerified ? 'حساب مُتحقق' : 'في انتظار التحقق'}</span>
+          </div>
+        </div>
+        <div style="margin-right:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-user-detail');openEditUser(${u.id})">✏️ تعديل</button>
+          ${!u.isVerified ? `<button class="btn btn-success btn-sm" onclick="sendUserOtp(${u.id},'${u.phone}')">📱 إرسال OTP</button>` : ''}
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="padding:12px;background:var(--surface2);border-radius:8px">
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">تاريخ التسجيل</div>
+          <div style="font-size:13px;font-weight:500">${formatDate(u.createdAt)}</div>
+        </div>
+        <div style="padding:12px;background:var(--surface2);border-radius:8px">
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">آخر تحديث</div>
+          <div style="font-size:13px;font-weight:500">${timeAgo(u.updatedAt)}</div>
+        </div>
+        <div style="padding:12px;background:var(--surface2);border-radius:8px">
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">المعرّف</div>
+          <div style="font-size:13px;font-family:var(--mono)">#${u.id}</div>
+        </div>
+        <div style="padding:12px;background:var(--surface2);border-radius:8px">
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">الحالة</div>
+          <div style="font-size:13px;font-weight:500;color:${u.isVerified ? 'var(--success)' : 'var(--warning)'}">${u.isVerified ? 'مُفعَّل' : 'غير مُفعَّل'}</div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById('user-detail-body').innerHTML = '<div class="empty"><p>فشل تحميل البيانات</p></div>';
+  }
+}
+
+function openAddUser() {
+  document.getElementById('modal-user-title').textContent = 'مستخدم جديد';
+  document.getElementById('u-edit-id').value = '';
+  document.getElementById('u-name').value = '';
+  document.getElementById('u-phone').value = '';
+  document.getElementById('u-verified').value = 'false';
+  document.getElementById('u-otp-section').style.display = 'block';
+  document.getElementById('modal-user').style.display = 'flex';
+}
+
+async function openEditUser(id) {
+  try {
+    const u = await api(`/users/${id}`);
+    document.getElementById('modal-user-title').textContent = 'تعديل المستخدم';
+    document.getElementById('u-edit-id').value = u.id;
+    document.getElementById('u-name').value = u.name || '';
+    document.getElementById('u-phone').value = u.phone || '';
+    document.getElementById('u-verified').value = String(u.isVerified);
+    document.getElementById('u-otp-section').style.display = 'none';
+    document.getElementById('modal-user').style.display = 'flex';
+  } catch(e) {}
+}
+
+async function saveUser() {
+  const id = document.getElementById('u-edit-id').value;
+  const body = {
+    name:       document.getElementById('u-name').value.trim(),
+    phone:      document.getElementById('u-phone').value.trim(),
+    isVerified: document.getElementById('u-verified').value === 'true',
+  };
+  if (!body.name || !body.phone) { toast('الاسم والهاتف مطلوبان','error'); return; }
+
+  const spin = document.getElementById('u-spinner');
+  spin.style.display = 'inline-block';
+  try {
+    if (id) {
+      await api(`/users/${id}`, { method:'PUT', body });
+      toast('تم تحديث المستخدم ✅');
+    } else {
+      await api('/users', { method:'POST', body });
+      toast('تم إنشاء الحساب وإرسال OTP ✅');
+    }
+    closeModal('modal-user');
+    if (currentPage === 'users') loadUsers(usersPage);
+    else loadOverview();
+  } catch(e) {}
+  finally { spin.style.display = 'none'; }
+}
+
+async function deleteUser(id) {
+  try {
+    await api(`/users/${id}`, { method:'DELETE' });
+    toast('تم حذف المستخدم');
+    loadUsers(usersPage);
+  } catch(e) {}
+}
+
+async function sendUserOtp(id, phone) {
+  try {
+    await api(`/users/${id}/send-otp`, { method:'POST' });
+    toast(`تم إرسال OTP إلى ${phone} ✅`);
+  } catch(e) {}
+}
+
+/* ════════════════════════════════════════
+   PHARMACIES
+════════════════════════════════════════ */
+async function loadPharmacies() {
+  try {
+    const list = await api('/pharmacies');
+    allPharmacies = list;
+    renderPharmacyCards(list);
+    populateFilters(list);
+  } catch(e) {}
+}
+
+function renderPharmacyCards(list) {
+  const grid = document.getElementById('pharmacies-grid');
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🏥</div><p>لا توجد صيدليات مسجّلة</p><small>أضف أول صيدلية للبدء</small></div>';
+    return;
+  }
+  grid.innerHTML = list.map(p => {
+    const total = p.stocks?.reduce((s,x)=>s+x.quantity,0)||0;
+    return `
+    <div class="card" style="transition:var(--transition)" onmouseenter="this.style.borderColor='var(--border2)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div>
+          <div style="font-size:14px;font-weight:700">${p.name}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${[p.city,p.address].filter(Boolean).join(' · ') || '—'}</div>
+        </div>
+        <span class="badge ${p.isActive?'badge-green badge-dot':'badge-gray badge-dot'}">${p.isActive?'نشطة':'معطلة'}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--accent)">${(p._count?.stocks||0).toLocaleString()}</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">صنف دواء</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--success)">${total.toLocaleString()}</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">وحدة</div>
+        </div>
+      </div>
+      ${p.phone ? `<div style="font-size:11px;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:5px">📞 <span dir="ltr">${p.phone}</span></div>` : ''}
+      ${p.workingHours ? `<div style="font-size:11px;color:var(--text2);margin-bottom:8px">🕐 ${p.workingHours}</div>` : ''}
+      ${p.latitude ? `<div style="font-size:10px;color:var(--accent2);margin-bottom:8px;font-family:var(--mono)">📍 ${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}</div>` : ''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+        <button class="btn btn-secondary btn-xs" onclick="navigate('pharmacy-detail',{id:${p.id}})">تفاصيل</button>
+        <button class="btn btn-secondary btn-xs" onclick="openEditPharmacy(${p.id})">✏️</button>
+        <button class="btn btn-xs" style="background:rgba(6,182,212,.1);color:var(--accent2);border:1px solid rgba(6,182,212,.2)" onclick="showApiKey(${p.id})">🔑 مفاتيح</button>
+        <button class="btn btn-xs ${p.isActive?'btn-danger':'btn-success'}" onclick="confirmAction('${p.isActive?'تعطيل':'تفعيل'} الصيدلية؟',()=>togglePharmacy(${p.id},${p.isActive}))">
+          ${p.isActive?'⏸ تعطيل':'▶ تفعيل'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterPharmacies(q) {
+  const city = document.getElementById('ph-filter-city')?.value || '';
+  const filtered = allPharmacies.filter(p => {
+    const matchQ = !q || p.name.toLowerCase().includes(q.toLowerCase()) || (p.city||'').toLowerCase().includes(q.toLowerCase());
+    const matchCity = !city || p.city === city;
+    return matchQ && matchCity;
+  });
+  renderPharmacyCards(filtered);
+}
+
+async function loadPharmacyDetail(id) {
+  document.getElementById('pharmacy-detail-content').innerHTML = '<div class="page-loader"><div class="spinner"></div></div>';
+  try {
+    const [ph, stats] = await Promise.all([api(`/pharmacies/${id}`), api(`/pharmacies/${id}/stats`)]);
+    renderPharmacyDetail(ph, stats);
+  } catch(e) {}
+}
+
+function renderPharmacyDetail(ph, stats) {
+  document.getElementById('pharmacy-detail-content').innerHTML = `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <h2 style="font-size:20px;font-weight:700">${ph.name}</h2>
+          <span class="badge ${ph.isActive?'badge-green badge-dot':'badge-gray badge-dot'}">${ph.isActive?'نشطة':'معطلة'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px">${ph.slug} · ${[ph.city,ph.address].filter(Boolean).join(' · ') || '—'}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="openEditPharmacy(${ph.id})">✏️ تعديل</button>
+        <button class="btn btn-sm" style="background:rgba(6,182,212,.1);color:var(--accent2);border:1px solid rgba(6,182,212,.2)" onclick="showApiKey(${ph.id})">🔑 المفاتيح</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px">
+      ${[
+        ['📦', stats.total_items, 'أصناف','var(--accent)'],
+        ['🔢', (stats.total_units||0).toLocaleString(), 'وحدات','var(--success)'],
+        ['⚠️', stats.low_stock, 'مخزون منخفض','var(--warning)'],
+        ['📅', stats.expiring_soon, 'تنتهي قريباً','var(--danger)'],
+      ].map(([icon,val,label,col])=>`
+        <div class="stat-card" style="padding:14px 16px">
+          <div class="stat-glow" style="background:${col}"></div>
+          <div style="font-size:22px;font-weight:700;color:${col};font-family:var(--mono)">${val}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:4px">${icon} ${label}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px">
+      <div class="card">
+        <div class="card-header"><div class="card-title">المخزون الحالي</div></div>
+        <div class="table-wrap" style="border:none">
+          <table>
+            <thead><tr><th>الدواء</th><th>الكمية</th><th>السعر</th><th>الانتهاء</th></tr></thead>
+            <tbody>
+              ${ph.stocks?.map(s=>`
+                <tr>
+                  <td style="font-size:12px;font-weight:500">${s.masterMedicine?.canonicalName||'—'}</td>
+                  <td><span class="badge ${s.quantity<=5?'badge-red':s.quantity<=20?'badge-amber':'badge-green'}">${s.quantity}</span></td>
+                  <td class="td-mono">${s.price?Number(s.price).toFixed(2):'—'}</td>
+                  <td style="font-size:11px;color:${isExpiringSoon(s.expiryDate)?'var(--danger)':'var(--text2)'}">${formatDate(s.expiryDate)}</td>
+                </tr>
+              `).join('')||'<tr><td colspan="4"><div class="empty"><p>لا مخزون</p></div></td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">آخر الأحداث</div></div>
+        ${stats.recent_events?.map(e=>`
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span class="ev-${e.eventType}" style="font-size:11px;font-weight:700;min-width:70px">${eventLabel(e.eventType)}</span>
+            <span class="badge ${statusBadge(e.status)}" style="font-size:10px">${e.status}</span>
+            <span style="font-size:11px;color:var(--muted);margin-right:auto">${timeAgo(e.createdAt)}</span>
+          </div>
+        `).join('')||'<div class="empty"><p>لا أحداث</p></div>'}
+      </div>
+    </div>
+  `;
+}
+
+/* ════════════════════════════════════════
+   MAP
+════════════════════════════════════════ */
+async function loadMap() {
+  try {
+    const list = await api('/pharmacies');
+    allPharmacies = list;
+    const withLoc = list.filter(p => p.latitude && p.longitude);
+    document.getElementById('map-subtitle').textContent = `${withLoc.length} من ${list.length} صيدلية لديها إحداثيات`;
+
+    if (!mapInst) {
+      mapInst = L.map('pharmacy-map').setView([18, 33], 6);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution:'© CartoDB', maxZoom:19 }).addTo(mapInst);
+    } else {
+      mapInst.eachLayer(l => { if(l instanceof L.CircleMarker) mapInst.removeLayer(l); });
+    }
+
+    withLoc.forEach(p => {
+      const total = p.stocks?.reduce((s,x)=>s+x.quantity,0)||0;
+      L.circleMarker([p.latitude,p.longitude], {
+        radius:10, fillColor: p.isActive?'#3b82f6':'#4a5568',
+        color:'#fff', weight:2, fillOpacity:.9
+      }).addTo(mapInst).bindPopup(`
+        <div style="direction:rtl;font-family:sans-serif;min-width:170px">
+          <strong>${p.name}</strong>
+          <div style="font-size:11px;color:#64748b;margin-top:3px">${p.city||''}</div>
+          <div style="margin-top:6px;font-size:12px">💊 ${p._count?.stocks||0} صنف · 📦 ${total.toLocaleString()}</div>
+          ${p.phone?`<div style="font-size:11px;margin-top:3px">📞 ${p.phone}</div>`:''}
+        </div>
+      `);
+    });
+
+    if (withLoc.length) mapInst.fitBounds(L.latLngBounds(withLoc.map(p=>[p.latitude,p.longitude])), {padding:[40,40]});
+
+    document.getElementById('map-cards').innerHTML = list.map(p => `
+      <div class="card" style="padding:12px;cursor:${p.latitude?'pointer':'default'}" onclick="${p.latitude?`mapInst.setView([${p.latitude},${p.longitude}],15)`:''}">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong style="font-size:12px">${p.name}</strong>
+          <span class="badge ${p.isActive?'badge-green':'badge-gray'}" style="font-size:10px">${p.isActive?'✓':'-'}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text2);margin-top:3px">${p.city||'—'}</div>
+        ${p.latitude?`<div style="font-size:9px;color:var(--accent2);margin-top:4px;font-family:var(--mono)">${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}</div>`:`<div style="font-size:10px;color:var(--muted);margin-top:4px">⚠️ لا إحداثيات</div>`}
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+/* ════════════════════════════════════════
+   MEDICINES
+════════════════════════════════════════ */
+async function loadMedicines(page = 1) {
+  medPage = page;
+  const search = document.getElementById('med-search')?.value || '';
+  const cat    = document.getElementById('med-filter-cat')?.value || '';
+  let url = `/medicines?page=${page}&limit=50`;
+  if (search) url += `&search=${encodeURIComponent(search)}`;
+  if (cat)    url += `&category=${encodeURIComponent(cat)}`;
+
+  try {
+    const data = await api(url);
+    document.getElementById('med-count').textContent = `${(data.total||0).toLocaleString()} صنف`;
+    document.getElementById('medicines-tbody').innerHTML = (data.data||[]).map(m => `
+      <tr>
+        <td>
+          <div style="font-weight:600;font-size:13px">${m.canonicalName}</div>
+          ${m.scientificName?`<div style="font-size:11px;color:var(--text2)">${m.scientificName}</div>`:''}
+        </td>
+        <td class="td-mono">${m.barcode||'—'}</td>
+        <td>${m.category?`<span class="badge badge-blue">${m.category}</span>`:'<span class="td-muted">—</span>'}</td>
+        <td><span class="badge ${(m.total_qty||0)<=10?'badge-red':(m.total_qty||0)<=50?'badge-amber':'badge-green'}">${(m.total_qty||0).toLocaleString()}</span></td>
+        <td><span class="badge badge-gray">${m.available_in||0} صيدلية</span></td>
+        <td class="td-muted">${m.unit||'—'}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="6"><div class="empty"><div class="empty-icon">💊</div><p>لا توجد أدوية</p></div></td></tr>';
+
+    renderPagination('med-pagination', page, data.total_pages || 1, p => loadMedicines(p));
+  } catch(e) {}
+}
+
+/* ════════════════════════════════════════
+   LOW STOCK
+════════════════════════════════════════ */
+async function loadLowStock() {
+  const threshold = document.getElementById('low-threshold')?.value || 10;
+  const phSlug = document.getElementById('low-ph-filter')?.value || '';
+  let url = `/inventory/low-stock?threshold=${threshold}`;
+  if (phSlug) url += `&pharmacy=${phSlug}`;
+
+  try {
+    const data = await fetch(url).then(r=>r.json());
+    document.getElementById('low-count').textContent = `${data.length} صنف`;
+    document.getElementById('lowstock-tbody').innerHTML = data.map(s => `
+      <tr>
+        <td style="font-weight:600;font-size:13px">${s.medicine_name}</td>
+        <td class="td-muted">${s.pharmacy?.name||'—'}</td>
+        <td><span class="badge badge-red" style="font-size:12px">${s.quantity}</span></td>
+        <td class="td-mono">${s.barcode||'—'}</td>
+        <td>${s.category?`<span class="badge badge-blue">${s.category}</span>`:'—'}</td>
+        <td class="td-muted">${timeAgo(s.last_sync)}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="6"><div class="empty"><div class="empty-icon">✅</div><p>كل الأدوية فوق الحد المطلوب 🎉</p></div></td></tr>';
+  } catch(e) {}
+}
+
+/* ════════════════════════════════════════
+   WEBHOOKS
+════════════════════════════════════════ */
+async function loadWebhooks(page = 1) {
+  whPage = page;
+  const phId   = document.getElementById('wh-filter-ph')?.value || '';
+  const status = document.getElementById('wh-filter-status')?.value || '';
+  let url = `/webhook-logs?page=${page}`;
+  if (phId)   url += `&pharmacyId=${phId}`;
+  if (status) url += `&status=${status}`;
+
+  try {
+    const data = await api(url);
+    document.getElementById('wh-count').textContent = `${data.total || 0} سجل`;
+    document.getElementById('webhooks-tbody').innerHTML = (data.logs||[]).map(l => `
+      <tr>
+        <td style="font-size:12px;font-weight:500">${l.pharmacy?.name||'—'}</td>
+        <td><span class="ev-${l.eventType}" style="font-weight:700;font-size:12px">${eventLabel(l.eventType)}</span></td>
+        <td><span class="badge ${statusBadge(l.status)} badge-dot">${l.status}</span></td>
+        <td><span class="badge badge-gray">${l.rawPayload?.medicines?.length ?? '—'} دواء</span></td>
+        <td class="td-muted">${formatDateTime(l.createdAt)}</td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--danger)">${l.errorMsg||'—'}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="6"><div class="empty"><div class="empty-icon">🔗</div><p>لا توجد سجلات</p></div></td></tr>';
+    renderPagination('wh-pagination', page, Math.ceil((data.total||0)/30), p => loadWebhooks(p));
+  } catch(e) {}
+}
+
+/* ════════════════════════════════════════
+   SETTINGS
+════════════════════════════════════════ */
+async function loadSettings() {
+  try {
+    const stats = await api('/stats');
+    document.getElementById('settings-info').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${[
+          ['إصدار النظام', 'v2.0.0'],
+          ['قاعدة البيانات', 'MySQL (Prisma ORM)'],
+          ['الصيدليات النشطة', stats.pharmacies?.active ?? '—'],
+          ['إجمالي الأدوية', (stats.medicines?.total??0).toLocaleString()],
+          ['أحداث اليوم', stats.webhooks_24h ?? '—'],
+        ].map(([label, val]) => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface2);border-radius:8px">
+            <span style="font-size:12px;color:var(--text2)">${label}</span>
+            <span style="font-size:13px;font-weight:600;font-family:var(--mono)">${val}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    document.getElementById('api-status-grid').innerHTML = [
+      { name:'Pharmacy Hub API', url:'/api/docs', status:'online', color:'var(--success)' },
+      { name:'Authentica OTP',   url:'#',         status:'configured', color:'var(--accent)' },
+      { name:'Database',         url:'#',         status:'connected', color:'var(--success)' },
+    ].map(s => `
+      <div style="padding:14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${s.color};display:inline-block;box-shadow:0 0 6px ${s.color}"></span>
+          <span style="font-size:12px;font-weight:600">${s.name}</span>
+        </div>
+        <div style="font-size:11px;color:${s.color};font-weight:500">${s.status}</div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+/* ════════════════════════════════════════
+   PHARMACY MODAL
+════════════════════════════════════════ */
+function openAddPharmacy() {
+  document.getElementById('ph-modal-title').textContent = 'إضافة صيدلية';
+  document.getElementById('ph-edit-id').value = '';
+  ['ph-name','ph-slug','ph-city','ph-hours','ph-address','ph-lat','ph-lng','ph-phone'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  switchTabById('tab-basic');
+  document.getElementById('modal-pharmacy').style.display = 'flex';
+  initMiniMap();
+}
+
+async function openEditPharmacy(id) {
+  try {
+    const ph = await api(`/pharmacies/${id}`);
+    document.getElementById('ph-modal-title').textContent = 'تعديل الصيدلية';
+    document.getElementById('ph-edit-id').value    = ph.id;
+    document.getElementById('ph-name').value       = ph.name || '';
+    document.getElementById('ph-slug').value       = ph.slug || '';
+    document.getElementById('ph-city').value       = ph.city || '';
+    document.getElementById('ph-hours').value      = ph.workingHours || '';
+    document.getElementById('ph-address').value    = ph.address || '';
+    document.getElementById('ph-lat').value        = ph.latitude || '';
+    document.getElementById('ph-lng').value        = ph.longitude || '';
+    document.getElementById('ph-phone').value      = ph.phone || '';
+    switchTabById('tab-basic');
+    document.getElementById('modal-pharmacy').style.display = 'flex';
+    initMiniMap(ph.latitude, ph.longitude);
+  } catch(e) {}
+}
+
+async function savePharmacy() {
+  const id = document.getElementById('ph-edit-id').value;
+  const body = {
+    name:         document.getElementById('ph-name').value.trim(),
+    slug:         document.getElementById('ph-slug').value.trim(),
+    city:         document.getElementById('ph-city').value.trim() || undefined,
+    workingHours: document.getElementById('ph-hours').value.trim() || undefined,
+    address:      document.getElementById('ph-address').value.trim() || undefined,
+    latitude:     parseFloat(document.getElementById('ph-lat').value) || undefined,
+    longitude:    parseFloat(document.getElementById('ph-lng').value) || undefined,
+    phone:        document.getElementById('ph-phone').value.trim() || undefined,
+  };
+  if (!body.name || !body.slug) { toast('الاسم والـ Slug مطلوبان','error'); return; }
+
+  const spin = document.getElementById('ph-spinner');
+  spin.style.display = 'inline-block';
+  try {
+    if (id) {
+      await api(`/pharmacies/${id}`, { method:'PUT', body });
+      toast('تم تحديث الصيدلية ✅');
+    } else {
+      const res = await api('/pharmacies', { method:'POST', body });
+      toast('تم إضافة الصيدلية ✅');
+      showApiKeyData(res.id, res.api_key, res.webhook_url);
+    }
+    closeModal('modal-pharmacy');
+    loadPharmacies();
+  } catch(e) {}
+  finally { spin.style.display = 'none'; }
+}
+
+async function togglePharmacy(id, isActive) {
+  try {
+    await api(`/pharmacies/${id}/toggle`, { method:'PATCH', body:{active:!isActive} });
+    toast(isActive ? 'تم تعطيل الصيدلية' : 'تم تفعيل الصيدلية ✅');
+    loadPharmacies();
+  } catch(e) {}
+}
+
+/* ════════════════════════════════════════
+   API KEY
+════════════════════════════════════════ */
+async function showApiKey(id) {
+  const ph = allPharmacies.find(p=>p.id===id) || await api(`/pharmacies/${id}`);
+  currentKeyPhId = id;
+  document.getElementById('key-url').textContent = `/webhooks/${ph.slug}`;
+  document.getElementById('key-apikey').textContent = ph.apiKey || '••••••••••••••••••••';
+  document.getElementById('modal-apikey').style.display = 'flex';
+}
+function showApiKeyData(id, apiKey, url) {
+  currentKeyPhId = id;
+  document.getElementById('key-url').textContent = url;
+  document.getElementById('key-apikey').textContent = apiKey;
+  document.getElementById('modal-apikey').style.display = 'flex';
+}
+async function regenKey() {
+  try {
+    const { apiKey } = await api(`/pharmacies/${currentKeyPhId}/regenerate-key`, { method:'POST' });
+    document.getElementById('key-apikey').textContent = apiKey;
+    toast('تم توليد مفتاح جديد ✅');
+    await loadPharmacies();
+  } catch(e) {}
+}
+function copyText(elId) {
+  navigator.clipboard.writeText(document.getElementById(elId).textContent)
+    .then(() => toast('تم النسخ ✅'));
+}
+
+/* ════════════════════════════════════════
+   MINI MAP
+════════════════════════════════════════ */
+function initMiniMap(lat, lng) {
+  setTimeout(() => {
+    if (miniMapInst) { miniMapInst.remove(); miniMapInst = null; }
+    const c = (lat && lng) ? [lat, lng] : [18, 33];
+    const z = (lat && lng) ? 14 : 6;
+    miniMapInst = L.map('mini-map').setView(c, z);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(miniMapInst);
+    let marker = lat && lng ? L.marker([lat,lng]).addTo(miniMapInst) : null;
+    miniMapInst.on('click', e => {
+      document.getElementById('ph-lat').value = e.latlng.lat.toFixed(6);
+      document.getElementById('ph-lng').value = e.latlng.lng.toFixed(6);
+      if (marker) marker.remove();
+      marker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(miniMapInst);
+    });
+  }, 120);
+}
+
+/* ════════════════════════════════════════
+   POPULATE FILTERS
+════════════════════════════════════════ */
+function populateFilters(pharmacies) {
+  const cities = [...new Set(pharmacies.map(p=>p.city).filter(Boolean))];
+  const cityFilter = document.getElementById('ph-filter-city');
+  if (cityFilter) cityFilter.innerHTML = '<option value="">كل المدن</option>' + cities.map(c=>`<option value="${c}">${c}</option>`).join('');
+
+  const slugs = pharmacies.map(p=>`<option value="${p.slug}">${p.name}</option>`).join('');
+  ['wh-filter-ph','low-ph-filter'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<option value="">كل الصيدليات</option>${slugs}`;
+  });
+}
+
+/* ════════════════════════════════════════
+   GLOBAL SEARCH
+════════════════════════════════════════ */
+const globalSearch = debounce((q) => {
+  if (!q || q.length < 2) return;
+  if (/^\+?[\d\s]+$/.test(q) || q.length > 10) navigate('users');
+  else navigate('medicines');
+}, 500);
+
+/* ════════════════════════════════════════
+   MODAL HELPERS
+════════════════════════════════════════ */
+function closeOverlay(e, overlay) { if (e.target === overlay) overlay.style.display = 'none'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function switchTab(btn, tabId) {
+  const body = btn.closest('.modal-body') || document.getElementById('modal-pharmacy').querySelector('.modal-body');
+  body.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  ['tab-basic','tab-location','tab-contact'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = id === tabId ? 'block' : 'none';
+  });
+  if (tabId === 'tab-location') setTimeout(() => miniMapInst?.invalidateSize(), 200);
+}
+
+function switchTabById(tabId) {
+  const tabs = document.querySelectorAll('#modal-pharmacy .tab');
+  tabs.forEach((t,i) => {
+    const ids = ['tab-basic','tab-location','tab-contact'];
+    t.classList.toggle('active', i === ids.indexOf(tabId));
+  });
+  ['tab-basic','tab-location','tab-contact'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = id === tabId ? 'block' : 'none';
+  });
+}
+
+function confirmAction(msg, fn) {
+  document.getElementById('confirm-msg').textContent = msg;
+  document.getElementById('modal-confirm').style.display = 'flex';
+  const btn = document.getElementById('confirm-ok');
+  const handler = async () => { closeModal('modal-confirm'); btn.removeEventListener('click', handler); await fn(); };
+  btn.addEventListener('click', handler);
+}
+
+function openQuickAction() { document.getElementById('modal-quick').style.display = 'flex'; }
+
+/* ════════════════════════════════════════
+   PAGINATION
+════════════════════════════════════════ */
+function renderPagination(containerId, current, total, onClick) {
+  const el = document.getElementById(containerId);
+  if (!el || total <= 1) { if(el) el.innerHTML=''; return; }
+  let html = `<button class="page-btn" ${current===1?'disabled':''} onclick="(${onClick.toString()})(${current-1})">‹</button>`;
+  const start = Math.max(1, current-2), end = Math.min(total, current+2);
+  if (start > 1) html += `<button class="page-btn" onclick="(${onClick.toString()})(1)">1</button>${start>2?'<span style="color:var(--muted);padding:0 4px">…</span>':''}`;
+  for (let p = start; p <= end; p++) html += `<button class="page-btn ${p===current?'active':''}" onclick="(${onClick.toString()})(${p})">${p}</button>`;
+  if (end < total) html += `${end<total-1?'<span style="color:var(--muted);padding:0 4px">…</span>':''}<button class="page-btn" onclick="(${onClick.toString()})(${total})">${total}</button>`;
+  html += `<button class="page-btn" ${current===total?'disabled':''} onclick="(${onClick.toString()})(${current+1})">›</button>`;
+  el.innerHTML = html;
+}
+
+/* ════════════════════════════════════════
+   TOAST
+════════════════════════════════════════ */
+function toast(msg, type='success') {
+  const icons = { success:'✅', error:'❌', warning:'⚠️' };
+  const c = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${icons[type]||'ℹ️'}</span><span style="flex:1">${msg}</span><button onclick="this.parentElement.remove()" style="background:none;color:var(--text2);font-size:14px;padding:0 0 0 4px">✕</button>`;
+  c.appendChild(t);
+  setTimeout(() => t.style.animation = 'fadeIn .2s reverse', 3000);
+  setTimeout(() => t.remove(), 3300);
+}
+
+/* ════════════════════════════════════════
+   UTILS
+════════════════════════════════════════ */
+function eventLabel(type) {
+  return { sale:'بيع', stock_added:'إضافة مخزون', stock_removed:'حذف مخزون', return:'إرجاع', shortage:'نقص', stock_update:'تحديث' }[type] || type;
+}
+function evIcon(type) {
+  return { sale:'💸', stock_added:'📥', stock_removed:'📤', return:'↩️', shortage:'⚠️', stock_update:'🔄' }[type] || '📋';
+}
+function statusBadge(s) {
+  return { processed:'badge-green', failed:'badge-red', pending:'badge-amber' }[s] || 'badge-gray';
+}
+function formatDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('ar-EG', {year:'numeric', month:'short', day:'numeric'});
+}
+function formatDateTime(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('ar-EG', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+function timeAgo(d) {
+  if (!d) return '—';
+  const diff = Date.now() - new Date(d).getTime();
+  const m = Math.floor(diff/60000);
+  if (m < 1)  return 'الآن';
+  if (m < 60) return `منذ ${m} دقيقة`;
+  const h = Math.floor(m/60);
+  if (h < 24) return `منذ ${h} ساعة`;
+  return `منذ ${Math.floor(h/24)} يوم`;
+}
+function isExpiringSoon(d) {
+  return d && new Date(d) < new Date(Date.now() + 90*86400000);
+}
+function avatarColor(name) {
+  const colors = ['linear-gradient(135deg,#3b82f6,#06b6d4)', 'linear-gradient(135deg,#8b5cf6,#ec4899)', 'linear-gradient(135deg,#10b981,#06b6d4)', 'linear-gradient(135deg,#f59e0b,#ef4444)', 'linear-gradient(135deg,#ec4899,#8b5cf6)'];
+  return colors[(name?.charCodeAt(0)||0) % colors.length];
+}
+
+/* ════════════════════════════════════════
+   DASHBOARD CONTROLLER: ADD MISSING ENDPOINTS
+   (add to dashboard.controller.ts)
+════════════════════════════════════════ */
+// These endpoints are needed in DashboardController:
+// GET  /api/dashboard/users?page&limit&search&isVerified
+// GET  /api/dashboard/users/:id
+// POST /api/dashboard/users
+// PUT  /api/dashboard/users/:id
+// DELETE /api/dashboard/users/:id
+// POST /api/dashboard/users/:id/send-otp
+
+/* ════════════════════════════════════════
+   INIT
+════════════════════════════════════════ */
+loadOverview();
+</script>
+</body>
+</html>
