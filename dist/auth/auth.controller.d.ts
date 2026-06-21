@@ -1,5 +1,5 @@
 import { AuthService } from './auth.service';
-import { RegisterDto, SendOtpDto, VerifyOtpDto } from './dto/auth.dto';
+import { RegisterDto, LoginDto, SendOtpDto, VerifyOtpDto, ResetPasswordDto } from './dto/auth.dto';
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
@@ -7,6 +7,19 @@ export declare class AuthController {
         success: boolean;
         message: string;
         user_id: number;
+    }>;
+    login(dto: LoginDto): Promise<{
+        success: boolean;
+        access_token: string;
+        token_type: string;
+        user: {
+            id: any;
+            name: any;
+            phone: any;
+            profile_image: any;
+            is_verified: any;
+            created_at: any;
+        };
     }>;
     sendOtp(dto: SendOtpDto): Promise<{
         success: boolean;
@@ -17,21 +30,32 @@ export declare class AuthController {
         access_token: string;
         token_type: string;
         user: {
-            id: number;
-            name: string;
-            phone: string;
-            is_verified: boolean;
+            id: any;
+            name: any;
+            phone: any;
+            profile_image: any;
+            is_verified: any;
+            created_at: any;
         };
+    }>;
+    forgotPassword(dto: SendOtpDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    resetPassword(dto: ResetPasswordDto): Promise<{
+        success: boolean;
+        message: string;
     }>;
     getMe(req: {
         user: {
             sub: number;
         };
     }): Promise<{
-        id: number;
-        name: string;
-        phone: string;
-        is_verified: boolean;
-        created_at: Date;
+        id: any;
+        name: any;
+        phone: any;
+        profile_image: any;
+        is_verified: any;
+        created_at: any;
     }>;
 }

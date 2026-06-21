@@ -25,11 +25,20 @@ let AuthController = class AuthController {
     register(dto) {
         return this.authService.register(dto);
     }
+    login(dto) {
+        return this.authService.login(dto);
+    }
     sendOtp(dto) {
-        return this.authService.sendLoginOtp(dto);
+        return this.authService.sendOtp(dto);
     }
     verifyOtp(dto) {
-        return this.authService.verifyAndLogin(dto);
+        return this.authService.verifyOtp(dto);
+    }
+    forgotPassword(dto) {
+        return this.authService.forgotPassword(dto);
+    }
+    resetPassword(dto) {
+        return this.authService.resetPassword(dto);
     }
     getMe(req) {
         return this.authService.getMe(req.user.sub);
@@ -39,26 +48,8 @@ exports.AuthController = AuthController;
 __decorate([
     (0, common_1.Post)('register'),
     (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
-    (0, swagger_1.ApiConsumes)('application/json'),
-    (0, swagger_1.ApiOperation)({
-        summary: 'تسجيل مستخدم جديد',
-        description: `
-      ينشئ حساباً جديداً ويُرسل OTP للتحقق.
-
-      **مثال الـ Body:**
-      \`\`\`json
-      {
-        "name": "محمود أحمد",
-        "phone": "+249912345678",
-        "method": "sms"
-      }
-      \`\`\`
-
-      بعد استلام الكود استخدم \`POST /auth/verify-otp\`
-    `,
-    }),
-    (0, swagger_1.ApiResponse)({ status: 201, description: 'تم الإنشاء وإرسال OTP' }),
-    (0, swagger_1.ApiResponse)({ status: 400, description: 'بيانات غير صحيحة' }),
+    (0, swagger_1.ApiOperation)({ summary: 'تسجيل مستخدم جديد', description: 'ينشئ حساباً ويُرسل OTP تلقائياً' }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'تم الإنشاء وإرسال OTP', schema: { example: { success: true, message: 'تم إنشاء الحساب، أدخل رمز OTP للتحقق', user_id: 1 } } }),
     (0, swagger_1.ApiResponse)({ status: 409, description: 'رقم الهاتف مسجّل مسبقاً' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -66,25 +57,23 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "register", null);
 __decorate([
+    (0, common_1.Post)('login'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'تسجيل الدخول بكلمة المرور', description: 'يُرجع access_token مباشرة' }),
+    (0, swagger_1.ApiResponse)({ status: 200, schema: { example: { success: true, access_token: 'eyJ...', token_type: 'Bearer', user: { id: 1, name: 'محمود', phone: '+249912345678', is_verified: true } } } }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'كلمة المرور غير صحيحة' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'الحساب غير مفعّل — أكمل التحقق من OTP' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [auth_dto_1.LoginDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "login", null);
+__decorate([
     (0, common_1.Post)('send-otp'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
-    (0, swagger_1.ApiConsumes)('application/json'),
-    (0, swagger_1.ApiOperation)({
-        summary: 'إرسال OTP لتسجيل الدخول',
-        description: `
-      يُرسل رمز OTP لرقم الهاتف.
-
-      **مثال الـ Body:**
-      \`\`\`json
-      {
-        "phone": "+249912345678",
-        "method": "sms"
-      }
-      \`\`\`
-    `,
-    }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'تم إرسال OTP' }),
-    (0, swagger_1.ApiResponse)({ status: 404, description: 'المستخدم غير موجود' }),
+    (0, swagger_1.ApiOperation)({ summary: 'إرسال OTP', description: 'يُرسل رمز OTP لرقم الهاتف' }),
+    (0, swagger_1.ApiResponse)({ status: 200, schema: { example: { success: true, message: 'تم إرسال رمز التحقق' } } }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'لا يوجد حساب بهذا الرقم' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [auth_dto_1.SendOtpDto]),
@@ -93,45 +82,42 @@ __decorate([
 __decorate([
     (0, common_1.Post)('verify-otp'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
-    (0, swagger_1.ApiConsumes)('application/json'),
-    (0, swagger_1.ApiOperation)({
-        summary: 'التحقق من OTP والحصول على JWT Token',
-        description: `
-      **مثال الـ Body:**
-      \`\`\`json
-      {
-        "phone": "+249912345678",
-        "otp": "123456"
-      }
-      \`\`\`
-
-      يُعيد \`access_token\` استخدمه في Header:
-      \`Authorization: Bearer <token>\`
-    `,
-    }),
-    (0, swagger_1.ApiResponse)({
-        status: 200,
-        schema: {
-            example: {
-                success: true,
-                access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-                token_type: 'Bearer',
-                user: { id: 1, name: 'محمود', phone: '+249912345678', is_verified: true },
-            },
-        },
-    }),
-    (0, swagger_1.ApiResponse)({ status: 401, description: 'رمز OTP خاطئ أو منتهي' }),
+    (0, swagger_1.ApiOperation)({ summary: 'التحقق من OTP بعد التسجيل', description: 'يُفعّل الحساب ويُرجع access_token' }),
+    (0, swagger_1.ApiResponse)({ status: 200, schema: { example: { success: true, access_token: 'eyJ...', token_type: 'Bearer', user: { id: 1, name: 'محمود', phone: '+249912345678', is_verified: true } } } }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'رمز OTP خاطئ أو منتهي الصلاحية' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [auth_dto_1.VerifyOtpDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "verifyOtp", null);
 __decorate([
+    (0, common_1.Post)('forgot-password'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'نسيت كلمة المرور', description: 'يُرسل OTP لإعادة التعيين' }),
+    (0, swagger_1.ApiResponse)({ status: 200, schema: { example: { success: true, message: 'تم إرسال رمز إعادة التعيين' } } }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'لا يوجد حساب بهذا الرقم' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [auth_dto_1.SendOtpDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "forgotPassword", null);
+__decorate([
+    (0, common_1.Post)('reset-password'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'إعادة تعيين كلمة المرور', description: 'يتحقق من OTP ويحدّث كلمة المرور' }),
+    (0, swagger_1.ApiResponse)({ status: 200, schema: { example: { success: true, message: 'تم تغيير كلمة المرور بنجاح' } } }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'رمز OTP خاطئ أو منتهي الصلاحية' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [auth_dto_1.ResetPasswordDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "resetPassword", null);
+__decorate([
     (0, common_1.Get)('me'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, swagger_1.ApiBearerAuth)('JWT'),
-    (0, swagger_1.ApiOperation)({ summary: 'بيانات المستخدم الحالي (يتطلب Bearer Token)' }),
-    (0, swagger_1.ApiResponse)({ status: 200 }),
+    (0, swagger_1.ApiOperation)({ summary: 'بيانات المستخدم الحالي', description: 'يتطلب Bearer Token' }),
+    (0, swagger_1.ApiResponse)({ status: 200, schema: { example: { id: 1, name: 'محمود', phone: '+249912345678', profile_image: null, is_verified: true, created_at: '2026-01-01T00:00:00.000Z' } } }),
     (0, swagger_1.ApiResponse)({ status: 401, description: 'Token مفقود أو منتهي' }),
     __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),

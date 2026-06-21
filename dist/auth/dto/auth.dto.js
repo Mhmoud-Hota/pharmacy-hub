@@ -9,76 +9,100 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VerifyOtpDto = exports.SendOtpDto = exports.RegisterDto = exports.OtpMethod = void 0;
-const class_validator_1 = require("class-validator");
+exports.ResetPasswordDto = exports.VerifyOtpDto = exports.SendOtpDto = exports.LoginDto = exports.RegisterDto = exports.OtpMethod = void 0;
 const swagger_1 = require("@nestjs/swagger");
+const class_validator_1 = require("class-validator");
 var OtpMethod;
 (function (OtpMethod) {
     OtpMethod["SMS"] = "sms";
     OtpMethod["WHATSAPP"] = "whatsapp";
-    OtpMethod["EMAIL"] = "email";
 })(OtpMethod || (exports.OtpMethod = OtpMethod = {}));
 class RegisterDto {
 }
 exports.RegisterDto = RegisterDto;
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'محمود أحمد', description: 'الاسم الكامل' }),
+    (0, swagger_1.ApiProperty)({ example: 'محمود أحمد', description: 'اسم المستخدم الكامل' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MinLength)(2),
-    (0, class_validator_1.MaxLength)(60),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "name", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({
-        example: '+966551234567',
-        description: 'رقم الهاتف بالصيغة الدولية',
-    }),
+    (0, swagger_1.ApiProperty)({ example: '+249912345678', description: 'رقم الهاتف مع كود الدولة' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.Matches)(/^\+[1-9]\d{1,14}$/, {
-        message: 'رقم الهاتف غير صحيح، يجب أن يكون بصيغة دولية مثل +966551234567',
-    }),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "phone", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({
-        example: 'sms',
-        enum: OtpMethod,
-        required: false,
-        description: 'طريقة استلام OTP (افتراضي: sms)',
-    }),
+    (0, swagger_1.ApiProperty)({ example: 'Password123', description: 'كلمة المرور (6 أحرف على الأقل)', minLength: 6 }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(6),
+    __metadata("design:type", String)
+], RegisterDto.prototype, "password", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'https://...', description: 'رابط صورة الملف الشخصي' }),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEnum)(OtpMethod),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RegisterDto.prototype, "profileImage", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ enum: OtpMethod, default: OtpMethod.SMS }),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "method", void 0);
+class LoginDto {
+}
+exports.LoginDto = LoginDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: '+249912345678' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], LoginDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'Password123' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], LoginDto.prototype, "password", void 0);
 class SendOtpDto {
 }
 exports.SendOtpDto = SendOtpDto;
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: '+966551234567' }),
+    (0, swagger_1.ApiProperty)({ example: '+249912345678' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.Matches)(/^\+[1-9]\d{1,14}$/, { message: 'رقم الهاتف غير صحيح' }),
     __metadata("design:type", String)
 ], SendOtpDto.prototype, "phone", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'sms', enum: OtpMethod, required: false }),
+    (0, swagger_1.ApiPropertyOptional)({ enum: OtpMethod, default: OtpMethod.SMS }),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEnum)(OtpMethod),
     __metadata("design:type", String)
 ], SendOtpDto.prototype, "method", void 0);
 class VerifyOtpDto {
 }
 exports.VerifyOtpDto = VerifyOtpDto;
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: '+966551234567' }),
+    (0, swagger_1.ApiProperty)({ example: '+249912345678' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.Matches)(/^\+[1-9]\d{1,14}$/, { message: 'رقم الهاتف غير صحيح' }),
     __metadata("design:type", String)
 ], VerifyOtpDto.prototype, "phone", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: '123456', description: 'رمز OTP المُرسَل للمستخدم' }),
+    (0, swagger_1.ApiProperty)({ example: '123456', description: 'الرمز المكون من 6 أرقام' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MinLength)(4),
-    (0, class_validator_1.MaxLength)(8),
     __metadata("design:type", String)
 ], VerifyOtpDto.prototype, "otp", void 0);
+class ResetPasswordDto {
+}
+exports.ResetPasswordDto = ResetPasswordDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: '+249912345678' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ResetPasswordDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: '123456' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ResetPasswordDto.prototype, "otp", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'NewPassword123', minLength: 6 }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(6),
+    __metadata("design:type", String)
+], ResetPasswordDto.prototype, "newPassword", void 0);
 //# sourceMappingURL=auth.dto.js.map

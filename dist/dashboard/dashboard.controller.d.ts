@@ -23,77 +23,77 @@ export declare class DashboardController {
         }[];
     }>;
     getPharmacies(): Promise<({
-        stocks: {
-            quantity: number;
-        }[];
         _count: {
             stocks: number;
             webhookLogs: number;
         };
+        stocks: {
+            quantity: number;
+        }[];
     } & {
         name: string;
-        slug: string;
-        address: string | null;
-        city: string | null;
         phone: string | null;
-        workingHours: string | null;
+        createdAt: Date;
+        id: number;
+        updatedAt: Date;
+        slug: string;
+        webhookSecret: string;
+        apiKey: string;
+        isActive: boolean;
         latitude: number | null;
         longitude: number | null;
-        id: number;
-        apiKey: string;
-        webhookSecret: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
+        address: string | null;
+        city: string | null;
+        workingHours: string | null;
     })[]>;
     getPharmacy(id: number): Promise<{
         stocks: ({
             masterMedicine: {
-                id: number;
                 createdAt: Date;
-                updatedAt: Date;
+                id: number;
                 barcode: string | null;
-                unit: string | null;
-                category: string | null;
                 canonicalName: string;
                 scientificName: string | null;
+                category: string | null;
+                unit: string | null;
                 tabletsPerBox: number | null;
+                updatedAt: Date;
             };
         } & {
             id: number;
-            updatedAt: Date;
-            pharmacyId: number;
-            price: import("@prisma/client/runtime/library").Decimal | null;
             unit: string | null;
             tabletsPerBox: number | null;
+            updatedAt: Date;
+            pharmacyId: number;
             masterMedicineId: number;
-            localMedicineId: number | null;
             quantity: number;
+            price: import("@prisma/client/runtime/library").Decimal | null;
             expiryDate: Date | null;
+            localMedicineId: number | null;
             lastSyncAt: Date;
         })[];
         webhookLogs: {
-            id: number;
             createdAt: Date;
+            id: number;
             eventType: string;
             status: string;
             errorMsg: string;
         }[];
     } & {
         name: string;
-        slug: string;
-        address: string | null;
-        city: string | null;
         phone: string | null;
-        workingHours: string | null;
+        createdAt: Date;
+        id: number;
+        updatedAt: Date;
+        slug: string;
+        webhookSecret: string;
+        apiKey: string;
+        isActive: boolean;
         latitude: number | null;
         longitude: number | null;
-        id: number;
-        apiKey: string;
-        webhookSecret: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
+        address: string | null;
+        city: string | null;
+        workingHours: string | null;
     }>;
     getPharmacyStats(id: number): Promise<{
         total_items: number;
@@ -111,53 +111,53 @@ export declare class DashboardController {
         webhook_secret: string;
         webhook_url: string;
         name: string;
-        slug: string;
-        address: string | null;
-        city: string | null;
         phone: string | null;
-        workingHours: string | null;
+        createdAt: Date;
+        id: number;
+        updatedAt: Date;
+        slug: string;
+        webhookSecret: string;
+        apiKey: string;
+        isActive: boolean;
         latitude: number | null;
         longitude: number | null;
-        id: number;
-        apiKey: string;
-        webhookSecret: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
+        address: string | null;
+        city: string | null;
+        workingHours: string | null;
     }>;
     updatePharmacy(id: number, body: any): Promise<{
         name: string;
-        slug: string;
-        address: string | null;
-        city: string | null;
         phone: string | null;
-        workingHours: string | null;
+        createdAt: Date;
+        id: number;
+        updatedAt: Date;
+        slug: string;
+        webhookSecret: string;
+        apiKey: string;
+        isActive: boolean;
         latitude: number | null;
         longitude: number | null;
-        id: number;
-        apiKey: string;
-        webhookSecret: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
+        address: string | null;
+        city: string | null;
+        workingHours: string | null;
     }>;
     togglePharmacy(id: number, body: {
         active: boolean;
     }): Promise<{
         name: string;
-        slug: string;
-        address: string | null;
-        city: string | null;
         phone: string | null;
-        workingHours: string | null;
+        createdAt: Date;
+        id: number;
+        updatedAt: Date;
+        slug: string;
+        webhookSecret: string;
+        apiKey: string;
+        isActive: boolean;
         latitude: number | null;
         longitude: number | null;
-        id: number;
-        apiKey: string;
-        webhookSecret: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
+        address: string | null;
+        city: string | null;
+        workingHours: string | null;
     }>;
     regenerateKey(id: number): Promise<{
         apiKey: string;
@@ -173,26 +173,26 @@ export declare class DashboardController {
                 };
             } & {
                 id: number;
-                updatedAt: Date;
-                pharmacyId: number;
-                price: import("@prisma/client/runtime/library").Decimal | null;
                 unit: string | null;
                 tabletsPerBox: number | null;
+                updatedAt: Date;
+                pharmacyId: number;
                 masterMedicineId: number;
-                localMedicineId: number | null;
                 quantity: number;
+                price: import("@prisma/client/runtime/library").Decimal | null;
                 expiryDate: Date | null;
+                localMedicineId: number | null;
                 lastSyncAt: Date;
             })[];
-            id: number;
             createdAt: Date;
-            updatedAt: Date;
+            id: number;
             barcode: string | null;
-            unit: string | null;
-            category: string | null;
             canonicalName: string;
             scientificName: string | null;
+            category: string | null;
+            unit: string | null;
             tabletsPerBox: number | null;
+            updatedAt: Date;
         }[];
         total: number;
         page: number;
@@ -205,8 +205,8 @@ export declare class DashboardController {
                 slug: string;
             };
         } & {
-            id: number;
             createdAt: Date;
+            id: number;
             pharmacyId: number;
             eventType: string;
             rawPayload: import("@prisma/client/runtime/library").JsonValue;
@@ -222,10 +222,11 @@ export declare class DashboardController {
         data: {
             name: string;
             phone: string;
-            id: number;
-            createdAt: Date;
-            updatedAt: Date;
+            password: string;
+            profileImage: string | null;
             isVerified: boolean;
+            createdAt: Date;
+            id: number;
         }[];
         total: number;
         page: number;
@@ -237,10 +238,11 @@ export declare class DashboardController {
     getUserById(id: number): Promise<{
         name: string;
         phone: string;
-        id: number;
-        createdAt: Date;
-        updatedAt: Date;
+        password: string;
+        profileImage: string | null;
         isVerified: boolean;
+        createdAt: Date;
+        id: number;
     }>;
     createUser(body: {
         name: string;
@@ -249,18 +251,20 @@ export declare class DashboardController {
     }): Promise<{
         name: string;
         phone: string;
-        id: number;
-        createdAt: Date;
-        updatedAt: Date;
+        password: string;
+        profileImage: string | null;
         isVerified: boolean;
+        createdAt: Date;
+        id: number;
     }>;
     updateUser(id: number, body: any): Promise<{
         name: string;
         phone: string;
-        id: number;
-        createdAt: Date;
-        updatedAt: Date;
+        password: string;
+        profileImage: string | null;
         isVerified: boolean;
+        createdAt: Date;
+        id: number;
     }>;
     deleteUser(id: number): Promise<{
         success: boolean;

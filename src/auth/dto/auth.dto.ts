@@ -1,68 +1,74 @@
 // src/auth/dto/auth.dto.ts
-import {
-  IsString, IsOptional, IsEnum,
-  Matches, MinLength, MaxLength,
-} from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, MinLength } from 'class-validator';
 
-export enum OtpMethod {
-  SMS      = 'sms',
-  WHATSAPP = 'whatsapp',
-  EMAIL    = 'email',
-}
+export enum OtpMethod { SMS = 'sms', WHATSAPP = 'whatsapp' }
 
-// ─── تسجيل مستخدم جديد ──────────────────────────────────────────────────────
 export class RegisterDto {
-  @ApiProperty({ example: 'محمود أحمد', description: 'الاسم الكامل' })
+  @ApiProperty({ example: 'محمود أحمد', description: 'اسم المستخدم الكامل' })
   @IsString()
-  @MinLength(2)
-  @MaxLength(60)
   name: string;
 
-  @ApiProperty({
-    example: '+966551234567',
-    description: 'رقم الهاتف بالصيغة الدولية',
-  })
+  @ApiProperty({ example: '+249912345678', description: 'رقم الهاتف مع كود الدولة' })
   @IsString()
-  @Matches(/^\+[1-9]\d{1,14}$/, {
-    message: 'رقم الهاتف غير صحيح، يجب أن يكون بصيغة دولية مثل +966551234567',
-  })
   phone: string;
 
-  @ApiProperty({
-    example: 'sms',
-    enum: OtpMethod,
-    required: false,
-    description: 'طريقة استلام OTP (افتراضي: sms)',
-  })
+  @ApiProperty({ example: 'Password123', description: 'كلمة المرور (6 أحرف على الأقل)', minLength: 6 })
+  @IsString()
+  @MinLength(6)
+  password: string;
+
+  @ApiPropertyOptional({ example: 'https://...', description: 'رابط صورة الملف الشخصي' })
   @IsOptional()
-  @IsEnum(OtpMethod)
+  @IsString()
+  profileImage?: string;
+
+  @ApiPropertyOptional({ enum: OtpMethod, default: OtpMethod.SMS })
+  @IsOptional()
   method?: OtpMethod;
 }
 
-// ─── إرسال OTP (تسجيل الدخول) ──────────────────────────────────────────────
+export class LoginDto {
+  @ApiProperty({ example: '+249912345678' })
+  @IsString()
+  phone: string;
+
+  @ApiProperty({ example: 'Password123' })
+  @IsString()
+  password: string;
+}
+
 export class SendOtpDto {
-  @ApiProperty({ example: '+966551234567' })
+  @ApiProperty({ example: '+249912345678' })
   @IsString()
-  @Matches(/^\+[1-9]\d{1,14}$/, { message: 'رقم الهاتف غير صحيح' })
   phone: string;
 
-  @ApiProperty({ example: 'sms', enum: OtpMethod, required: false })
+  @ApiPropertyOptional({ enum: OtpMethod, default: OtpMethod.SMS })
   @IsOptional()
-  @IsEnum(OtpMethod)
   method?: OtpMethod;
 }
 
-// ─── التحقق من OTP ──────────────────────────────────────────────────────────
 export class VerifyOtpDto {
-  @ApiProperty({ example: '+966551234567' })
+  @ApiProperty({ example: '+249912345678' })
   @IsString()
-  @Matches(/^\+[1-9]\d{1,14}$/, { message: 'رقم الهاتف غير صحيح' })
   phone: string;
 
-  @ApiProperty({ example: '123456', description: 'رمز OTP المُرسَل للمستخدم' })
+  @ApiProperty({ example: '123456', description: 'الرمز المكون من 6 أرقام' })
   @IsString()
-  @MinLength(4)
-  @MaxLength(8)
   otp: string;
+}
+
+export class ResetPasswordDto {
+  @ApiProperty({ example: '+249912345678' })
+  @IsString()
+  phone: string;
+
+  @ApiProperty({ example: '123456' })
+  @IsString()
+  otp: string;
+
+  @ApiProperty({ example: 'NewPassword123', minLength: 6 })
+  @IsString()
+  @MinLength(6)
+  newPassword: string;
 }

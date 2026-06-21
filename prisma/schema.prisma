@@ -11,15 +11,15 @@ datasource db {
 }
 
 // ─── المستخدمون (لوحة التحكم / تطبيق الجوال) ──────────────────────────────
+// prisma/schema.prisma
 model User {
   id          Int      @id @default(autoincrement())
   name        String
   phone       String   @unique
-  isVerified  Boolean  @default(false)   // true بعد أول تحقق OTP ناجح
+  password    String   // ← جديد (مشفّر bcrypt)
+  profileImage String? // ← جديد
+  isVerified  Boolean  @default(false)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("users")
 }
 
 // ─── الصيدليات المسجلة في النظام ───────────────────────────────────────────

@@ -8,21 +8,12 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // ── CORS ───────────────────────────────────────────────────────────────────
   app.enableCors();
-
-  // ── Global Exception Filter ────────────────────────────────────────────────
-  // يُعيد رسائل خطأ واضحة بدلاً من "Unexpected token ..."
   app.useGlobalFilters(new HttpExceptionFilter());
-
-  // ── ValidationPipe ─────────────────────────────────────────────────────────
-  // transform: true  ← يحوّل الأنواع تلقائياً
-  // whitelist: true  ← يحذف حقولاً غير مُعرَّفة في الـ DTO
   app.useGlobalPipes(new ValidationPipe({
     whitelist:            true,
     transform:            true,
     forbidNonWhitelisted: false,
-    // رسائل الأخطاء بالتفصيل
     validationError:      { target: false, value: false },
   }));
 
@@ -32,30 +23,92 @@ async function bootstrap() {
     .setDescription(`
 ## نظام إدارة المخزون المركزي للصيدليات
 
-### ⚠️ تنبيه مهم عند اختبار الـ API:
-تأكد من إرسال \`Content-Type: application/json\` في كل طلب يحتوي على Body.
+---
 
-**مثال صحيح:**
+### 🔐 تدفق المصادقة
+
+#### تسجيل مستخدم جديد:
 \`\`\`
-POST /auth/register
+1. POST /auth/register      → أرسل البيانات + يُرسل OTP تلقائياً
+2. POST /auth/verify-otp    → تحقق من OTP → يُرجع access_token
+\`\`\`
+
+#### تسجيل الدخول:
+\`\`\`
+POST /auth/login  →  هاتف + كلمة مرور  →  access_token
+\`\`\`
+
+#### نسيت كلمة المرور:
+\`\`\`
+1. POST /auth/forgot-password  →  إرسال OTP
+2. POST /auth/reset-password   →  OTP + كلمة المرور الجديدة
+\`\`\`
+
+---
+
+### 🔑 استخدام التوكن
+بعد الحصول على \`access_token\`، أضفه في كل طلب محمي:
+\`\`\`
+Authorization: Bearer <access_token>
+\`\`\`
+
+---
+
+### 📦 مزامنة المخزون من الصيدليات (Webhook)
+\`\`\`
+POST /webhooks/:pharmacySlug
+X-API-Key: <pharmacy_api_key>
 Content-Type: application/json
 
 {
-  "name": "محمود أحمد",
-  "phone": "+249912345678",
-  "method": "sms"
+  "event": "medicine.updated",
+  "data": { "barcode": "123", "quantity": 50, "price": 100 }
 }
 \`\`\`
+
+أنواع الأحداث المدعومة:
+- \`medicine.added\`
+- \`medicine.updated\`
+- \`medicine.deleted\`
+- \`sale.created\`
     `)
     .setVersion('2.0')
-    .addTag('Auth',       'تسجيل الدخول والتحقق عبر OTP')
-    .addTag('Webhooks',   'أحداث المخزون الواردة من الصيدليات')
-    .addTag('Inventory',  'إدارة المخزون والبحث')
-    .addTag('Pharmacies', 'إدارة الصيدليات')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')
+    .addTag('Auth',       '🔐 المصادقة — تسجيل، دخول، OTP، كلمة المرور')
+    .addTag('Webhooks',   '📦 أحداث المخزون الواردة من الصيدليات')
+    .addTag('Inventory',  '🔍 البحث وعرض المخزون')
+    .addTag('Pharmacies', '🏥 إدارة الصيدليات')
+    .addTag('Dashboard',  '📊 لوحة التحكم الإدارية')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'أدخل access_token هنا' },
+      'JWT',
+    )
     .build();
 
-  SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+  SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig), {
+    swaggerOptions: {
+      persistAuthorization: true,          // يحفظ التوكن بعد refresh الصفحة
+      tagsSorter:           'alpha',
+      operationsSorter:     'alpha',
+      docExpansion:         'none',        // يبدأ مطوياً
+      filter:               true,          // خانة بحث
+      tryItOutEnabled:      true,          // يفتح "Try it out" تلقائياً
+    },
+    customSiteTitle: 'Pharmacy Hub — API Docs',
+    customCss: `
+      .swagger-ui .topbar { background: #006D5B; }
+      .swagger-ui .topbar-wrapper img { display: none; }
+      .swagger-ui .topbar-wrapper::after {
+        content: '🏥 Pharmacy Hub API';
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+        padding: 10px;
+      }
+      .swagger-ui .info .title { color: #006D5B; }
+      .swagger-ui .btn.authorize { border-color: #006D5B; color: #006D5B; }
+      .swagger-ui .btn.authorize svg { fill: #006D5B; }
+    `,
+  });
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);

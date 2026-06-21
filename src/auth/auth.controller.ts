@@ -1,126 +1,75 @@
 // src/auth/auth.controller.ts
-import {
-  Controller, Post, Get, Body,
-  UseGuards, Request, HttpCode, HttpStatus,
-} from '@nestjs/common';
-import {
-  ApiTags, ApiOperation, ApiBearerAuth,
-  ApiResponse, ApiConsumes,
-} from '@nestjs/swagger';
-import { AuthService }                           from './auth.service';
-import { JwtAuthGuard }                          from './guards/jwt-auth.guard';
-import { RegisterDto, SendOtpDto, VerifyOtpDto } from './dto/auth.dto';
+import { Controller, Post, Get, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { AuthService }    from './auth.service';
+import { JwtAuthGuard }   from './guards/jwt-auth.guard';
+import { RegisterDto, LoginDto, SendOtpDto, VerifyOtpDto, ResetPasswordDto } from './dto/auth.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  /**
-   * POST /auth/register
-   * Body (JSON): { "name": "...", "phone": "+249...", "method": "sms" }
-   */
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  @ApiConsumes('application/json')
-  @ApiOperation({
-    summary:     'تسجيل مستخدم جديد',
-    description: `
-      ينشئ حساباً جديداً ويُرسل OTP للتحقق.
-
-      **مثال الـ Body:**
-      \`\`\`json
-      {
-        "name": "محمود أحمد",
-        "phone": "+249912345678",
-        "method": "sms"
-      }
-      \`\`\`
-
-      بعد استلام الكود استخدم \`POST /auth/verify-otp\`
-    `,
-  })
-  @ApiResponse({ status: 201, description: 'تم الإنشاء وإرسال OTP' })
-  @ApiResponse({ status: 400, description: 'بيانات غير صحيحة' })
+  @ApiOperation({ summary: 'تسجيل مستخدم جديد', description: 'ينشئ حساباً ويُرسل OTP تلقائياً' })
+  @ApiResponse({ status: 201, description: 'تم الإنشاء وإرسال OTP', schema: { example: { success: true, message: 'تم إنشاء الحساب، أدخل رمز OTP للتحقق', user_id: 1 } } })
   @ApiResponse({ status: 409, description: 'رقم الهاتف مسجّل مسبقاً' })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
-  /**
-   * POST /auth/send-otp
-   * Body (JSON): { "phone": "+249...", "method": "sms" }
-   */
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'تسجيل الدخول بكلمة المرور', description: 'يُرجع access_token مباشرة' })
+  @ApiResponse({ status: 200, schema: { example: { success: true, access_token: 'eyJ...', token_type: 'Bearer', user: { id: 1, name: 'محمود', phone: '+249912345678', is_verified: true } } } })
+  @ApiResponse({ status: 401, description: 'كلمة المرور غير صحيحة' })
+  @ApiResponse({ status: 401, description: 'الحساب غير مفعّل — أكمل التحقق من OTP' })
+  login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
+  }
+
   @Post('send-otp')
   @HttpCode(HttpStatus.OK)
-  @ApiConsumes('application/json')
-  @ApiOperation({
-    summary:     'إرسال OTP لتسجيل الدخول',
-    description: `
-      يُرسل رمز OTP لرقم الهاتف.
-
-      **مثال الـ Body:**
-      \`\`\`json
-      {
-        "phone": "+249912345678",
-        "method": "sms"
-      }
-      \`\`\`
-    `,
-  })
-  @ApiResponse({ status: 200, description: 'تم إرسال OTP' })
-  @ApiResponse({ status: 404, description: 'المستخدم غير موجود' })
+  @ApiOperation({ summary: 'إرسال OTP', description: 'يُرسل رمز OTP لرقم الهاتف' })
+  @ApiResponse({ status: 200, schema: { example: { success: true, message: 'تم إرسال رمز التحقق' } } })
+  @ApiResponse({ status: 404, description: 'لا يوجد حساب بهذا الرقم' })
   sendOtp(@Body() dto: SendOtpDto) {
-    return this.authService.sendLoginOtp(dto);
+    return this.authService.sendOtp(dto);
   }
 
-  /**
-   * POST /auth/verify-otp
-   * Body (JSON): { "phone": "+249...", "otp": "123456" }
-   */
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
-  @ApiConsumes('application/json')
-  @ApiOperation({
-    summary:     'التحقق من OTP والحصول على JWT Token',
-    description: `
-      **مثال الـ Body:**
-      \`\`\`json
-      {
-        "phone": "+249912345678",
-        "otp": "123456"
-      }
-      \`\`\`
-
-      يُعيد \`access_token\` استخدمه في Header:
-      \`Authorization: Bearer <token>\`
-    `,
-  })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        success:      true,
-        access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-        token_type:   'Bearer',
-        user: { id: 1, name: 'محمود', phone: '+249912345678', is_verified: true },
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'رمز OTP خاطئ أو منتهي' })
+  @ApiOperation({ summary: 'التحقق من OTP بعد التسجيل', description: 'يُفعّل الحساب ويُرجع access_token' })
+  @ApiResponse({ status: 200, schema: { example: { success: true, access_token: 'eyJ...', token_type: 'Bearer', user: { id: 1, name: 'محمود', phone: '+249912345678', is_verified: true } } } })
+  @ApiResponse({ status: 401, description: 'رمز OTP خاطئ أو منتهي الصلاحية' })
   verifyOtp(@Body() dto: VerifyOtpDto) {
-    return this.authService.verifyAndLogin(dto);
+    return this.authService.verifyOtp(dto);
   }
 
-  /**
-   * GET /auth/me
-   * Header: Authorization: Bearer <token>
-   */
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'نسيت كلمة المرور', description: 'يُرسل OTP لإعادة التعيين' })
+  @ApiResponse({ status: 200, schema: { example: { success: true, message: 'تم إرسال رمز إعادة التعيين' } } })
+  @ApiResponse({ status: 404, description: 'لا يوجد حساب بهذا الرقم' })
+  forgotPassword(@Body() dto: SendOtpDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'إعادة تعيين كلمة المرور', description: 'يتحقق من OTP ويحدّث كلمة المرور' })
+  @ApiResponse({ status: 200, schema: { example: { success: true, message: 'تم تغيير كلمة المرور بنجاح' } } })
+  @ApiResponse({ status: 401, description: 'رمز OTP خاطئ أو منتهي الصلاحية' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'بيانات المستخدم الحالي (يتطلب Bearer Token)' })
-  @ApiResponse({ status: 200 })
+  @ApiOperation({ summary: 'بيانات المستخدم الحالي', description: 'يتطلب Bearer Token' })
+  @ApiResponse({ status: 200, schema: { example: { id: 1, name: 'محمود', phone: '+249912345678', profile_image: null, is_verified: true, created_at: '2026-01-01T00:00:00.000Z' } } })
   @ApiResponse({ status: 401, description: 'Token مفقود أو منتهي' })
   getMe(@Request() req: { user: { sub: number } }) {
     return this.authService.getMe(req.user.sub);

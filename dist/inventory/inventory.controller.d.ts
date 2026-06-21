@@ -43,8 +43,8 @@ export declare class InventoryController {
     getLowStock(threshold?: string, pharmacySlug?: string): Promise<{
         pharmacy: {
             name: string;
-            slug: string;
             id: number;
+            slug: string;
         };
         medicine_name: string;
         barcode: string;

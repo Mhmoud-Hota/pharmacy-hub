@@ -203,7 +203,17 @@ let DashboardService = class DashboardService {
         return user;
     }
     async createUser(data) {
-        return this.prisma.user.create({ data });
+        const bcrypt = await Promise.resolve().then(() => require('bcrypt'));
+        const rawPassword = data.password ?? Math.random().toString(36).slice(-8);
+        const hashed = await bcrypt.hash(rawPassword, 10);
+        return this.prisma.user.create({
+            data: {
+                name: data.name,
+                phone: data.phone,
+                password: hashed,
+                isVerified: data.isVerified ?? false,
+            },
+        });
     }
     async updateUser(id, data) {
         return this.prisma.user.update({ where: { id }, data });

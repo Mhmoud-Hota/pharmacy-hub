@@ -1,7 +1,7 @@
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../database/prisma.service';
 import { AuthenticaService } from './authentica.service';
-import { RegisterDto, SendOtpDto, VerifyOtpDto } from './dto/auth.dto';
+import { RegisterDto, LoginDto, SendOtpDto, VerifyOtpDto, ResetPasswordDto } from './dto/auth.dto';
 export declare class AuthService {
     private readonly prisma;
     private readonly authentica;
@@ -13,26 +13,51 @@ export declare class AuthService {
         message: string;
         user_id: number;
     }>;
-    sendLoginOtp(dto: SendOtpDto): Promise<{
-        success: boolean;
-        message: string;
-    }>;
-    verifyAndLogin(dto: VerifyOtpDto): Promise<{
+    login(dto: LoginDto): Promise<{
         success: boolean;
         access_token: string;
         token_type: string;
         user: {
-            id: number;
-            name: string;
-            phone: string;
-            is_verified: boolean;
+            id: any;
+            name: any;
+            phone: any;
+            profile_image: any;
+            is_verified: any;
+            created_at: any;
         };
     }>;
-    getMe(userId: number): Promise<{
-        id: number;
-        name: string;
-        phone: string;
-        is_verified: boolean;
-        created_at: Date;
+    sendOtp(dto: SendOtpDto): Promise<{
+        success: boolean;
+        message: string;
     }>;
+    verifyOtp(dto: VerifyOtpDto): Promise<{
+        success: boolean;
+        access_token: string;
+        token_type: string;
+        user: {
+            id: any;
+            name: any;
+            phone: any;
+            profile_image: any;
+            is_verified: any;
+            created_at: any;
+        };
+    }>;
+    forgotPassword(dto: SendOtpDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    resetPassword(dto: ResetPasswordDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    getMe(userId: number): Promise<{
+        id: any;
+        name: any;
+        phone: any;
+        profile_image: any;
+        is_verified: any;
+        created_at: any;
+    }>;
+    private _formatUser;
 }
