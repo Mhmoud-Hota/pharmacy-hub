@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ResetPasswordDto = exports.VerifyOtpDto = exports.SendOtpDto = exports.LoginDto = exports.RegisterDto = exports.OtpMethod = void 0;
+exports.RefreshTokenDto = exports.ResetPasswordDto = exports.VerifyOtpDto = exports.SendOtpDto = exports.LoginDto = exports.RegisterDto = exports.OtpMethod = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 var OtpMethod;
@@ -105,4 +105,12 @@ __decorate([
     (0, class_validator_1.MinLength)(6),
     __metadata("design:type", String)
 ], ResetPasswordDto.prototype, "newPassword", void 0);
+class RefreshTokenDto {
+}
+exports.RefreshTokenDto = RefreshTokenDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'eyJ...', description: 'الـ Refresh Token الحالي' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RefreshTokenDto.prototype, "refresh_token", void 0);
 //# sourceMappingURL=auth.dto.js.map

@@ -3,7 +3,7 @@ import { Controller, Post, Get, Body, UseGuards, Request, HttpCode, HttpStatus }
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService }    from './auth.service';
 import { JwtAuthGuard }   from './guards/jwt-auth.guard';
-import { RegisterDto, LoginDto, SendOtpDto, VerifyOtpDto, ResetPasswordDto } from './dto/auth.dto';
+import { RegisterDto, LoginDto, SendOtpDto, VerifyOtpDto, ResetPasswordDto, RefreshTokenDto } from './dto/auth.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -21,12 +21,21 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'تسجيل الدخول بكلمة المرور', description: 'يُرجع access_token مباشرة' })
-  @ApiResponse({ status: 200, schema: { example: { success: true, access_token: 'eyJ...', token_type: 'Bearer', user: { id: 1, name: 'محمود', phone: '+249912345678', is_verified: true } } } })
-  @ApiResponse({ status: 401, description: 'كلمة المرور غير صحيحة' })
-  @ApiResponse({ status: 401, description: 'الحساب غير مفعّل — أكمل التحقق من OTP' })
+  @ApiOperation({ summary: 'تسجيل الدخول | Login', description: 'يتحقق من بيانات المستخدم ويُرجع Access Token و Refresh Token' })
+  @ApiResponse({ status: 200, description: 'تم تسجيل الدخول بنجاح', schema: { example: { statusCode: 200, path: '/auth/login', timestamp: '2026-06-21T08:00:00.000Z', success: true, access_token: 'eyJ...', refresh_token: 'eyJ...', token_type: 'Bearer', user: { id: 1, name: 'محمود أحمد', phone: '+249912345678', profile_image: null, is_verified: true, created_at: '2026-01-01T00:00:00.000Z' } } } })
+  @ApiResponse({ status: 401, description: 'فشل المصادقة (كلمة مرور خاطئة أو حساب غير مفعل)', schema: { example: { statusCode: 401, message: 'كلمة المرور غير صحيحة', timestamp: '2026-06-21T08:00:00.000Z', path: '/auth/login' } } })
+  @ApiResponse({ status: 404, description: 'المستخدم غير موجود', schema: { example: { statusCode: 404, message: 'لا يوجد حساب بهذا الرقم', timestamp: '2026-06-21T08:00:00.000Z', path: '/auth/login' } } })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('refresh-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'تجديد التوكن | Refresh Token', description: 'يستخدم Refresh Token صالح للحصول على Access Token جديد' })
+  @ApiResponse({ status: 200, description: 'تم تجديد التوكن بنجاح', schema: { example: { statusCode: 200, path: '/auth/refresh-token', timestamp: '2026-06-21T08:00:00.000Z', success: true, access_token: 'eyJ...', refresh_token: 'eyJ...', token_type: 'Bearer' } } })
+  @ApiResponse({ status: 401, description: 'Refresh Token غير صالح أو منتهي الصلاحية', schema: { example: { statusCode: 401, message: 'Refresh Token غير صالح أو منتهي', timestamp: '2026-06-21T08:00:00.000Z', path: '/auth/refresh-token' } } })
+  refreshToken(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshToken(dto);
   }
 
   @Post('send-otp')
@@ -40,9 +49,9 @@ export class AuthController {
 
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'التحقق من OTP بعد التسجيل', description: 'يُفعّل الحساب ويُرجع access_token' })
-  @ApiResponse({ status: 200, schema: { example: { success: true, access_token: 'eyJ...', token_type: 'Bearer', user: { id: 1, name: 'محمود', phone: '+249912345678', is_verified: true } } } })
-  @ApiResponse({ status: 401, description: 'رمز OTP خاطئ أو منتهي الصلاحية' })
+  @ApiOperation({ summary: 'التحقق من رمز OTP | Verify OTP', description: 'يتحقق من الرمز المرسل للهاتف، يُفعّل الحساب، ويُرجع توكنات الدخول' })
+  @ApiResponse({ status: 200, description: 'تم التحقق بنجاح', schema: { example: { statusCode: 200, path: '/auth/verify-otp', timestamp: '2026-06-21T08:00:00.000Z', success: true, access_token: 'eyJ...', refresh_token: 'eyJ...', token_type: 'Bearer', user: { id: 1, name: 'محمود أحمد', phone: '+249912345678', is_verified: true } } } })
+  @ApiResponse({ status: 401, description: 'رمز التحقق غير صحيح أو منتهي', schema: { example: { statusCode: 401, message: 'رمز التحقق غير صحيح أو منتهي الصلاحية', timestamp: '2026-06-21T08:00:00.000Z', path: '/auth/verify-otp' } } })
   verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
   }

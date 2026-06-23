@@ -52,12 +52,11 @@ let AuthService = AuthService_1 = class AuthService {
         const valid = await bcrypt.compare(dto.password, user.password);
         if (!valid)
             throw new common_1.UnauthorizedException('كلمة المرور غير صحيحة');
-        const token = this.jwt.sign({ sub: user.id, phone: user.phone, name: user.name });
+        const tokens = await this._generateTokens(user);
         this.logger.log(`[Login] User #${user.id}`);
         return {
             success: true,
-            access_token: token,
-            token_type: 'Bearer',
+            ...tokens,
             user: this._formatUser(user),
         };
     }
@@ -78,12 +77,11 @@ let AuthService = AuthService_1 = class AuthService {
         if (!user.isVerified) {
             await this.prisma.user.update({ where: { id: user.id }, data: { isVerified: true } });
         }
-        const token = this.jwt.sign({ sub: user.id, phone: user.phone, name: user.name });
+        const tokens = await this._generateTokens(user);
         this.logger.log(`[VerifyOTP] User #${user.id}`);
         return {
             success: true,
-            access_token: token,
-            token_type: 'Bearer',
+            ...tokens,
             user: this._formatUser({ ...user, isVerified: true }),
         };
     }
@@ -110,6 +108,39 @@ let AuthService = AuthService_1 = class AuthService {
         if (!user)
             throw new common_1.NotFoundException('المستخدم غير موجود');
         return this._formatUser(user);
+    }
+    async refreshToken(dto) {
+        try {
+            const payload = await this.jwt.verifyAsync(dto.refresh_token, {
+                secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret_123',
+            });
+            const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+            if (!user || user.refreshToken !== dto.refresh_token) {
+                throw new common_1.UnauthorizedException('Refresh Token غير صالح أو منتهي');
+            }
+            const tokens = await this._generateTokens(user);
+            return { success: true, ...tokens };
+        }
+        catch (e) {
+            throw new common_1.UnauthorizedException('Refresh Token غير صالح أو منتهي');
+        }
+    }
+    async _generateTokens(user) {
+        const payload = { sub: user.id, phone: user.phone, name: user.name };
+        const accessToken = this.jwt.sign(payload);
+        const refreshToken = this.jwt.sign(payload, {
+            secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret_123',
+            expiresIn: '7d',
+        });
+        await this.prisma.user.update({
+            where: { id: user.id },
+            data: { refreshToken },
+        });
+        return {
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            token_type: 'Bearer',
+        };
     }
     _formatUser(user) {
         return {

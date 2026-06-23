@@ -1,7 +1,7 @@
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../database/prisma.service';
 import { AuthenticaService } from './authentica.service';
-import { RegisterDto, LoginDto, SendOtpDto, VerifyOtpDto, ResetPasswordDto } from './dto/auth.dto';
+import { RegisterDto, LoginDto, SendOtpDto, VerifyOtpDto, ResetPasswordDto, RefreshTokenDto } from './dto/auth.dto';
 export declare class AuthService {
     private readonly prisma;
     private readonly authentica;
@@ -14,9 +14,6 @@ export declare class AuthService {
         user_id: number;
     }>;
     login(dto: LoginDto): Promise<{
-        success: boolean;
-        access_token: string;
-        token_type: string;
         user: {
             id: any;
             name: any;
@@ -25,15 +22,16 @@ export declare class AuthService {
             is_verified: any;
             created_at: any;
         };
+        access_token: string;
+        refresh_token: string;
+        token_type: string;
+        success: boolean;
     }>;
     sendOtp(dto: SendOtpDto): Promise<{
         success: boolean;
         message: string;
     }>;
     verifyOtp(dto: VerifyOtpDto): Promise<{
-        success: boolean;
-        access_token: string;
-        token_type: string;
         user: {
             id: any;
             name: any;
@@ -42,6 +40,10 @@ export declare class AuthService {
             is_verified: any;
             created_at: any;
         };
+        access_token: string;
+        refresh_token: string;
+        token_type: string;
+        success: boolean;
     }>;
     forgotPassword(dto: SendOtpDto): Promise<{
         success: boolean;
@@ -59,5 +61,12 @@ export declare class AuthService {
         is_verified: any;
         created_at: any;
     }>;
+    refreshToken(dto: RefreshTokenDto): Promise<{
+        access_token: string;
+        refresh_token: string;
+        token_type: string;
+        success: boolean;
+    }>;
+    private _generateTokens;
     private _formatUser;
 }

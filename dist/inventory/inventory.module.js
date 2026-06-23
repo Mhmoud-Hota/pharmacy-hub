@@ -8,20 +8,37 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InventoryModule = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
+const multer_1 = require("multer");
 const inventory_controller_1 = require("./inventory.controller");
 const inventory_service_1 = require("./inventory.service");
 const geo_search_service_1 = require("./geo-search.service");
 const bulk_import_controller_1 = require("./bulk-import.controller");
 const bulk_import_service_1 = require("./bulk-import.service");
-const webhook_module_1 = require("../webhook/webhook.module");
+const image_search_controller_1 = require("./image-search.controller");
+const image_search_service_1 = require("./image-search.service");
+const database_module_1 = require("../database/database.module");
 let InventoryModule = class InventoryModule {
 };
 exports.InventoryModule = InventoryModule;
 exports.InventoryModule = InventoryModule = __decorate([
     (0, common_1.Module)({
-        imports: [webhook_module_1.WebhookModule],
-        controllers: [inventory_controller_1.InventoryController, bulk_import_controller_1.BulkImportController],
-        providers: [inventory_service_1.InventoryService, geo_search_service_1.GeoSearchService, bulk_import_service_1.BulkImportService],
+        imports: [
+            database_module_1.DatabaseModule,
+            platform_express_1.MulterModule.register({ storage: (0, multer_1.memoryStorage)() }),
+        ],
+        controllers: [
+            inventory_controller_1.InventoryController,
+            bulk_import_controller_1.BulkImportController,
+            image_search_controller_1.ImageSearchController,
+        ],
+        providers: [
+            inventory_service_1.InventoryService,
+            geo_search_service_1.GeoSearchService,
+            bulk_import_service_1.BulkImportService,
+            image_search_service_1.ImageSearchService,
+        ],
+        exports: [inventory_service_1.InventoryService, geo_search_service_1.GeoSearchService],
     })
 ], InventoryModule);
 //# sourceMappingURL=inventory.module.js.map

@@ -72,3 +72,9 @@ export class ResetPasswordDto {
   @MinLength(6)
   newPassword: string;
 }
+
+export class RefreshTokenDto {
+  @ApiProperty({ example: 'eyJ...', description: 'الـ Refresh Token الحالي' })
+  @IsString()
+  refresh_token: string;
+}

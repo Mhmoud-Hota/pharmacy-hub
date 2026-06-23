@@ -42,23 +42,23 @@ export declare class PharmacyController {
     }>;
     findAll(): Promise<{
         name: string;
+        slug: string;
+        address: string;
+        city: string;
         phone: string;
-        createdAt: Date;
+        workingHours: string;
+        latitude: number;
+        longitude: number;
         id: number;
+        isActive: boolean;
+        createdAt: Date;
         _count: {
             stocks: number;
         };
-        slug: string;
-        isActive: boolean;
-        latitude: number;
-        longitude: number;
-        address: string;
-        city: string;
-        workingHours: string;
     }[]>;
     getWebhookLogs(slug: string): Promise<{
-        createdAt: Date;
         id: number;
+        createdAt: Date;
         eventType: string;
         status: string;
         errorMsg: string;

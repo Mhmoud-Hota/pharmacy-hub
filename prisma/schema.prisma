@@ -13,13 +13,17 @@ datasource db {
 // ─── المستخدمون (لوحة التحكم / تطبيق الجوال) ──────────────────────────────
 // prisma/schema.prisma
 model User {
-  id          Int      @id @default(autoincrement())
-  name        String
-  phone       String   @unique
-  password    String   // ← جديد (مشفّر bcrypt)
-  profileImage String? // ← جديد
-  isVerified  Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  name         String
+  phone        String   @unique
+  password     String
+  profileImage String?  @map("profile_image")
+  isVerified   Boolean  @default(false) @map("is_verified")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  refreshToken String?  @map("refresh_token") // <--- أضف هذا السطر
+
+  @@map("users")
 }
 
 // ─── الصيدليات المسجلة في النظام ───────────────────────────────────────────

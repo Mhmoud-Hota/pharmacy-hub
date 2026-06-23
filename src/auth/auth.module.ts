@@ -19,9 +19,8 @@ import { JwtAuthGuard }      from './guards/jwt-auth.guard';
       useFactory: (config: ConfigService) => ({
         secret:      config.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
-          // @nestjs/jwt v11 يتطلب number (ثواني) أو StringValue من مكتبة ms
-          // الحل: استخدم number مباشرةً (7 أيام = 604800 ثانية)
-          expiresIn: 60 * 60 * 24 * 7,   // 604800 seconds = 7 days
+          // Access Token expires in 15 minutes for better security
+          expiresIn: '15m',
         },
       }),
     }),

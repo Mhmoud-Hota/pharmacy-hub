@@ -9,7 +9,7 @@ import { PrismaService }     from '../database/prisma.service';
 import { AuthenticaService } from './authentica.service';
 import {
   RegisterDto, LoginDto, SendOtpDto,
-  VerifyOtpDto, ResetPasswordDto, OtpMethod,
+  VerifyOtpDto, ResetPasswordDto, OtpMethod, RefreshTokenDto,
 } from './dto/auth.dto';
 import * as bcrypt from 'bcrypt';
 
@@ -58,13 +58,12 @@ export class AuthService {
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) throw new UnauthorizedException('كلمة المرور غير صحيحة');
 
-    const token = this.jwt.sign({ sub: user.id, phone: user.phone, name: user.name });
+    const tokens = await this._generateTokens(user);
     this.logger.log(`[Login] User #${user.id}`);
 
     return {
       success:      true,
-      access_token: token,
-      token_type:   'Bearer',
+      ...tokens,
       user: this._formatUser(user),
     };
   }
@@ -90,13 +89,12 @@ export class AuthService {
       await this.prisma.user.update({ where: { id: user.id }, data: { isVerified: true } });
     }
 
-    const token = this.jwt.sign({ sub: user.id, phone: user.phone, name: user.name });
+    const tokens = await this._generateTokens(user);
     this.logger.log(`[VerifyOTP] User #${user.id}`);
 
     return {
       success:      true,
-      access_token: token,
-      token_type:   'Bearer',
+      ...tokens,
       user:         this._formatUser({ ...user, isVerified: true }),
     };
   }
@@ -131,7 +129,48 @@ export class AuthService {
     return this._formatUser(user);
   }
 
-  // ── Helper ─────────────────────────────────────────────────────────────────
+  // ── 8. تجديد التوكن (Refresh Token) ─────────────────────────────────────────
+  async refreshToken(dto: RefreshTokenDto) {
+    try {
+      const payload = await this.jwt.verifyAsync(dto.refresh_token, {
+        secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret_123',
+      });
+
+      const user: any = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+      if (!user || user.refreshToken !== dto.refresh_token) {
+        throw new UnauthorizedException('Refresh Token غير صالح أو منتهي');
+      }
+
+      const tokens = await this._generateTokens(user);
+      return { success: true, ...tokens };
+    } catch (e) {
+      throw new UnauthorizedException('Refresh Token غير صالح أو منتهي');
+    }
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  private async _generateTokens(user: any) {
+    const payload = { sub: user.id, phone: user.phone, name: user.name };
+    
+    const accessToken = this.jwt.sign(payload);
+    const refreshToken = this.jwt.sign(payload, {
+      secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret_123',
+      expiresIn: '7d',
+    });
+
+    // تحديث الـ Refresh Token في قاعدة البيانات
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken } as any,
+    });
+
+    return {
+      access_token:  accessToken,
+      refresh_token: refreshToken,
+      token_type:    'Bearer',
+    };
+  }
+
   private _formatUser(user: any) {
     return {
       id:           user.id,

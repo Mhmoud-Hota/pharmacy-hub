@@ -26,3 +26,6 @@ export declare class ResetPasswordDto {
     otp: string;
     newPassword: string;
 }
+export declare class RefreshTokenDto {
+    refresh_token: string;
+}
