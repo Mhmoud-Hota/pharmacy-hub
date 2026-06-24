@@ -12,12 +12,13 @@ var ImageSearchService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ImageSearchService = void 0;
 const common_1 = require("@nestjs/common");
-const sdk_1 = require("@anthropic-ai/sdk");
+const openai_1 = require("openai");
 let ImageSearchService = ImageSearchService_1 = class ImageSearchService {
     constructor() {
         this.logger = new common_1.Logger(ImageSearchService_1.name);
-        this.anthropic = new sdk_1.default({
-            apiKey: process.env.ANTHROPIC_API_KEY,
+        this.client = new openai_1.default({
+            apiKey: process.env.APIFREE_API_KEY,
+            baseURL: 'https://api.apifree.ai/v1',
         });
     }
     async extractMedicineFromImage(imageBuffer, mimeType) {

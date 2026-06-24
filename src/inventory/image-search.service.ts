@@ -1,16 +1,5 @@
-// src/inventory/image-search.service.ts
-/**
- * ImageSearchService
- * ──────────────────
- * يستخدم Claude AI (Anthropic) لاستخراج اسم الدواء من صورة روشتة أو علبة دواء.
- *
- * متطلبات:
- *   npm install @anthropic-ai/sdk
- *   متغير بيئة: ANTHROPIC_API_KEY
- */
-
 import { Injectable, Logger } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
 export interface ExtractionResult {
   found: boolean;
@@ -23,11 +12,17 @@ export interface ExtractionResult {
 @Injectable()
 export class ImageSearchService {
   private readonly logger = new Logger(ImageSearchService.name);
-  private readonly anthropic: Anthropic;
+  private readonly client: OpenAI;
 
   constructor() {
-    this.anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
+    const apiKey = process.env.APIFREE_API_KEY;
+    if (!apiKey) {
+      throw new Error('APIFREE_API_KEY is not set in environment variables');
+    }
+
+    this.client = new OpenAI({
+      apiKey,
+      baseURL: 'https://api.apifree.ai/v1',
     });
   }
 
@@ -38,19 +33,17 @@ export class ImageSearchService {
     try {
       const base64Image = imageBuffer.toString('base64');
 
-      const response = await this.anthropic.messages.create({
-        model: 'claude-opus-4-5',
+      const response = await this.client.chat.completions.create({
+        model: 'gpt-5.2',
         max_tokens: 1024,
         messages: [
           {
             role: 'user',
             content: [
               {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
-                  data: base64Image,
+                type: 'image_url',
+                image_url: {
+                  url: `data:${mimeType};base64,${base64Image}`,
                 },
               },
               {
@@ -69,7 +62,7 @@ export class ImageSearchService {
 إذا وجدت دواء واحداً أو أكثر:
 {
   "found": true,
-  "primary_name": "اسم الدواء الرئيسي (الأوضح في الصورة)",
+  "primary_name": "اسم الدواء الرئيسي",
   "alternative_names": ["اسم بديل 1", "اسم بديل 2"],
   "confidence": "high|medium|low"
 }
@@ -80,9 +73,8 @@ export class ImageSearchService {
   "message": "سبب عدم التعرف"
 }
 
-ملاحظات مهمة:
-- اكتب اسم الدواء كما هو في الصورة (عربي أو إنجليزي أو كليهما)
-- إذا كانت روشتة بأسماء متعددة، ضع الأول أو الأوضح كـ primary_name والباقي في alternative_names
+ملاحظات:
+- اكتب اسم الدواء كما هو في الصورة (عربي أو إنجليزي)
 - لا تخمّن، فقط استخرج ما هو مكتوب بوضوح`,
               },
             ],
@@ -90,15 +82,13 @@ export class ImageSearchService {
         ],
       });
 
-      const textContent = response.content.find((c) => c.type === 'text');
-      if (!textContent || textContent.type !== 'text') {
+      const rawText = response.choices[0]?.message?.content?.trim();
+      if (!rawText) {
         return { found: false, message: 'لم يتمكن الذكاء الاصطناعي من تحليل الصورة' };
       }
 
-      const rawText = textContent.text.trim();
       this.logger.debug(`AI raw response: ${rawText}`);
 
-      // تنظيف الاستجابة من markdown code blocks إن وُجدت
       const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
       let parsed: any;
@@ -122,11 +112,17 @@ export class ImageSearchService {
         alternativeNames: parsed.alternative_names ?? [],
         rawResponse: rawText,
       };
+
     } catch (error) {
       this.logger.error('ImageSearchService error:', error);
 
-      if (error?.status === 401) {
-        return { found: false, message: 'خطأ في مفتاح Anthropic API' };
+      // ✅ الحل الصحيح لخطأ TypeScript
+      const status = (error as any)?.status ?? (error as any)?.response?.status;
+      if (status === 401) {
+        return { found: false, message: 'خطأ في مفتاح API - تحقق من APIFREE_API_KEY' };
+      }
+      if (status === 404) {
+        return { found: false, message: 'النموذج غير موجود - تحقق من اسم الموديل' };
       }
 
       return {
