@@ -18,6 +18,7 @@ const bulk_import_service_1 = require("./bulk-import.service");
 const image_search_controller_1 = require("./image-search.controller");
 const image_search_service_1 = require("./image-search.service");
 const database_module_1 = require("../database/database.module");
+const webhook_module_1 = require("../webhook/webhook.module");
 let InventoryModule = class InventoryModule {
 };
 exports.InventoryModule = InventoryModule;
@@ -25,6 +26,7 @@ exports.InventoryModule = InventoryModule = __decorate([
     (0, common_1.Module)({
         imports: [
             database_module_1.DatabaseModule,
+            webhook_module_1.WebhookModule,
             platform_express_1.MulterModule.register({ storage: (0, multer_1.memoryStorage)() }),
         ],
         controllers: [

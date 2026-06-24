@@ -11,10 +11,12 @@ import { BulkImportService }     from './bulk-import.service';
 import { ImageSearchController } from './image-search.controller';
 import { ImageSearchService }    from './image-search.service';
 import { DatabaseModule }        from '../database/database.module';
+import { WebhookModule } from '../webhook/webhook.module';
 
 @Module({
   imports: [
     DatabaseModule,
+    WebhookModule,
     // نخزّن الصورة في الذاكرة مؤقتاً (buffer) بدلاً من القرص
     MulterModule.register({ storage: memoryStorage() }),
   ],

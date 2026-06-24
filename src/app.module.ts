@@ -10,7 +10,6 @@ import { InventoryModule }   from './inventory/inventory.module';
 import { DashboardModule }   from './dashboard/dashboard.module';
 import { AuthModule }        from './auth/auth.module';   // ← جديد
 
-
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
