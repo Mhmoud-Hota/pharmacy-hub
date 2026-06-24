@@ -16,27 +16,29 @@ const openai_1 = require("openai");
 let ImageSearchService = ImageSearchService_1 = class ImageSearchService {
     constructor() {
         this.logger = new common_1.Logger(ImageSearchService_1.name);
+        const apiKey = process.env.APIFREE_API_KEY;
+        if (!apiKey) {
+            throw new Error('APIFREE_API_KEY is not set in environment variables');
+        }
         this.client = new openai_1.default({
-            apiKey: process.env.APIFREE_API_KEY,
+            apiKey,
             baseURL: 'https://api.apifree.ai/v1',
         });
     }
     async extractMedicineFromImage(imageBuffer, mimeType) {
         try {
             const base64Image = imageBuffer.toString('base64');
-            const response = await this.anthropic.messages.create({
-                model: 'claude-opus-4-5',
+            const response = await this.client.chat.completions.create({
+                model: 'gpt-5.2',
                 max_tokens: 1024,
                 messages: [
                     {
                         role: 'user',
                         content: [
                             {
-                                type: 'image',
-                                source: {
-                                    type: 'base64',
-                                    media_type: mimeType,
-                                    data: base64Image,
+                                type: 'image_url',
+                                image_url: {
+                                    url: `data:${mimeType};base64,${base64Image}`,
                                 },
                             },
                             {
@@ -55,7 +57,7 @@ let ImageSearchService = ImageSearchService_1 = class ImageSearchService {
 إذا وجدت دواء واحداً أو أكثر:
 {
   "found": true,
-  "primary_name": "اسم الدواء الرئيسي (الأوضح في الصورة)",
+  "primary_name": "اسم الدواء الرئيسي",
   "alternative_names": ["اسم بديل 1", "اسم بديل 2"],
   "confidence": "high|medium|low"
 }
@@ -66,20 +68,18 @@ let ImageSearchService = ImageSearchService_1 = class ImageSearchService {
   "message": "سبب عدم التعرف"
 }
 
-ملاحظات مهمة:
-- اكتب اسم الدواء كما هو في الصورة (عربي أو إنجليزي أو كليهما)
-- إذا كانت روشتة بأسماء متعددة، ضع الأول أو الأوضح كـ primary_name والباقي في alternative_names
+ملاحظات:
+- اكتب اسم الدواء كما هو في الصورة (عربي أو إنجليزي)
 - لا تخمّن، فقط استخرج ما هو مكتوب بوضوح`,
                             },
                         ],
                     },
                 ],
             });
-            const textContent = response.content.find((c) => c.type === 'text');
-            if (!textContent || textContent.type !== 'text') {
+            const rawText = response.choices[0]?.message?.content?.trim();
+            if (!rawText) {
                 return { found: false, message: 'لم يتمكن الذكاء الاصطناعي من تحليل الصورة' };
             }
-            const rawText = textContent.text.trim();
             this.logger.debug(`AI raw response: ${rawText}`);
             const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
             let parsed;
@@ -105,9 +105,12 @@ let ImageSearchService = ImageSearchService_1 = class ImageSearchService {
         }
         catch (error) {
             this.logger.error('ImageSearchService error:', error);
-            if (error?.status === 401) {
-                return { found: false, message: 'خطأ في مفتاح Anthropic API' };
-            }
+            this.logger.error('Error details:', {
+                message: error?.message,
+                status: error?.status,
+                code: error?.code,
+                response: error?.response?.data ?? error?.response,
+            });
             return {
                 found: false,
                 message: 'حدث خطأ أثناء تحليل الصورة، يرجى المحاولة مرة أخرى',

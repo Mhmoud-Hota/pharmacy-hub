@@ -1,4 +1,3 @@
-import OpenAI from 'openai';
 export interface ExtractionResult {
     found: boolean;
     medicineName?: string;
@@ -8,8 +7,7 @@ export interface ExtractionResult {
 }
 export declare class ImageSearchService {
     private readonly logger;
-    private readonly anthropic;
-    client: OpenAI;
+    private readonly client;
     constructor();
     extractMedicineFromImage(imageBuffer: Buffer, mimeType: string): Promise<ExtractionResult>;
 }

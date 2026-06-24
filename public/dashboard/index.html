@@ -1048,12 +1048,21 @@ async function api(path, opts={}) {
 ════════════════════════════════════════ */
 async function loadOverview() {
   try {
-    const [stats, phData, logsData, usersData] = await Promise.all([
-      api('/stats'),
-      api('/pharmacies'),
-      api('/webhook-logs?page=1'),
-      api('/users?page=1&limit=5'),
-    ]);
+    const [stats, phRes, logsData, usersData] = await Promise.all([
+  api('/stats'),
+  api('/pharmacies'),
+  api('/webhook-logs?page=1'),
+  api('/users?page=1&limit=5'),
+]);
+
+// تحويل
+const phData = Array.isArray(phRes)
+  ? phRes
+  : Object.entries(phRes)
+      .filter(([key]) => !isNaN(key))
+      .map(([, val]) => val);
+
+allPharmacies = phData;
     allPharmacies = phData;
     allUsers = usersData.data || [];
 
@@ -1351,13 +1360,20 @@ async function sendUserOtp(id, phone) {
 ════════════════════════════════════════ */
 async function loadPharmacies() {
   try {
-    const list = await api('/pharmacies');
+    const res = await api('/pharmacies');
+    
+    // تحويل الـ object إلى array
+    const list = Array.isArray(res) 
+      ? res 
+      : Object.entries(res)
+          .filter(([key]) => !isNaN(key))  // فلتر المفاتيح الرقمية فقط
+          .map(([, val]) => val);
+    
     allPharmacies = list;
     renderPharmacyCards(list);
     populateFilters(list);
   } catch(e) {}
 }
-
 function renderPharmacyCards(list) {
   const grid = document.getElementById('pharmacies-grid');
   if (!list.length) {
