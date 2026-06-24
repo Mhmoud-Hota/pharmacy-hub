@@ -113,17 +113,25 @@ export class ImageSearchService {
         rawResponse: rawText,
       };
 
-    } catch (error) {
-      this.logger.error('ImageSearchService error:', error);
+    }catch (error) {
+  this.logger.error('ImageSearchService error:', error);
+  this.logger.error('Error details:', {
+    message: (error as any)?.message,
+    status: (error as any)?.status,
+    code: (error as any)?.code,
+    response: (error as any)?.response?.data ?? (error as any)?.response,
+  });
+  //  catch (error) {
+  //     this.logger.error('ImageSearchService error:', error);
 
-      // ✅ الحل الصحيح لخطأ TypeScript
-      const status = (error as any)?.status ?? (error as any)?.response?.status;
-      if (status === 401) {
-        return { found: false, message: 'خطأ في مفتاح API - تحقق من APIFREE_API_KEY' };
-      }
-      if (status === 404) {
-        return { found: false, message: 'النموذج غير موجود - تحقق من اسم الموديل' };
-      }
+  //     // ✅ الحل الصحيح لخطأ TypeScript
+  //     const status = (error as any)?.status ?? (error as any)?.response?.status;
+  //     if (status === 401) {
+  //       return { found: false, message: 'خطأ في مفتاح API - تحقق من APIFREE_API_KEY' };
+  //     }
+  //     if (status === 404) {
+  //       return { found: false, message: 'النموذج غير موجود - تحقق من اسم الموديل' };
+  //     }
 
       return {
         found: false,
