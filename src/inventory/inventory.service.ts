@@ -38,6 +38,7 @@ export class InventoryService {
         take: limit,
         include: {
           stocks: {
+            where: { quantity: { gt: 0 } },
             include: { pharmacy: { select: { id: true, name: true, slug: true } } },
             orderBy: { quantity: 'desc' },
           },
@@ -97,9 +98,9 @@ export class InventoryService {
     const { page, limit } = filters;
     const skip = (page - 1) * limit;
 
-    const stockWhere: any = { pharmacyId: pharmacy.id };
+    const stockWhere: any = { pharmacyId: pharmacy.id, quantity: { gt: 0 } };
     if (filters.lowStockThreshold !== undefined) {
-      stockWhere.quantity = { lte: filters.lowStockThreshold };
+      stockWhere.quantity = { gt: 0, lte: filters.lowStockThreshold };
     }
 
     const masterWhere: any = {};
@@ -239,7 +240,7 @@ export class InventoryService {
   // 5. الأدوية التي كادت تنفد (low stock)
   // ─────────────────────────────────────────────────────────────────────────
   async getLowStock(threshold = 10, pharmacySlug?: string) {
-    const where: any = { quantity: { lte: threshold } };
+    const where: any = { quantity: { gt: 0, lte: threshold } };
 
     if (pharmacySlug) {
       const pharmacy = await this.prisma.pharmacy.findUnique({ where: { slug: pharmacySlug } });
