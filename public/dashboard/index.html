@@ -471,6 +471,12 @@ td { padding: 11px 14px; vertical-align: middle; }
       <button class="nav-item" onclick="navigate('webhooks')">
         <span class="nav-icon">🔗</span> سجل الأحداث
       </button>
+      <button class="nav-item" onclick="navigate('backup')">
+        <span class="nav-icon">💾</span> النسخ الاحتياطي
+      </button>
+      <button class="nav-item" onclick="navigate('search-stats')">
+        <span class="nav-icon">📊</span> إحصائيات البحث
+      </button>
       <button class="nav-item" onclick="navigate('settings')">
         <span class="nav-icon">⚙️</span> الإعدادات
       </button>
@@ -727,6 +733,122 @@ td { padding: 11px 14px; vertical-align: middle; }
     </div>
 
     <!-- ══════════ PAGE: SETTINGS ══════════ -->
+    
+    <!-- PAGE: BACKUP -->
+    <div class="page" id="page-backup">
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+          <div class="card-title">💾 النسخ الاحتياطي الكامل</div>
+          <div style="font-size:12px;color:var(--text2)">تصدير جميع بيانات النظام (الصيدليات، الأدوية، المخزون)</div>
+        </div>
+        <div style="padding:16px 0 0">
+          <button class="btn btn-primary" onclick="downloadFullBackup()">📥 تنزيل نسخة كاملة (JSON)</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+          <div class="card-title">🏥 نسخ احتياطي لصيدلية</div>
+          <div style="font-size:12px;color:var(--text2)">تصدير مخزون صيدلية محددة بصيغة JSON أو CSV</div>
+        </div>
+        <div style="padding:16px 0 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">اختر الصيدلية</label>
+            <select id="backup-pharmacy-select" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px"><option value="">-- اختر صيدلية --</option></select>
+          </div>
+          <button class="btn btn-primary" onclick="downloadPharmacyBackup('json')">📥 JSON</button>
+          <button class="btn btn-secondary" onclick="downloadPharmacyBackup('csv')">📄 CSV</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px;border-color:rgba(239,68,68,.2)">
+        <div class="card-header">
+          <div class="card-title" style="color:var(--danger)">🗑️ تفريغ مخزون صيدلية</div>
+          <div style="font-size:12px;color:var(--text2)">حذف جميع سجلات المخزون لصيدلية محددة (لا يمكن التراجع)</div>
+        </div>
+        <div style="padding:16px 0 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">اختر الصيدلية</label>
+            <select id="clear-pharmacy-select" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px"><option value="">-- اختر صيدلية --</option></select>
+          </div>
+          <button class="btn btn-danger" onclick="confirmClearStock()">⚠️ تفريغ المخزون</button>
+        </div>
+        <div id="clear-result" style="margin-top:12px;display:none"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📤 استيراد مخزون</div>
+          <div style="font-size:12px;color:var(--text2)">رفع ملف CSV أو JSON لاستيراد مخزون صيدلية</div>
+        </div>
+        <div style="padding:16px 0 0;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:200px">
+              <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">الصيدلية المستهدفة</label>
+              <select id="import-pharmacy-select" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px"><option value="">-- اختر صيدلية --</option></select>
+            </div>
+            <div style="min-width:160px">
+              <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">وضع الاستيراد</label>
+              <select id="import-mode" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px">
+                <option value="merge">دمج (merge)</option>
+                <option value="replace">استبدال كامل (replace)</option>
+              </select>
+            </div>
+          </div>
+          <div style="border:2px dashed var(--border2);border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:var(--transition)"
+               id="import-dropzone"
+               onclick="document.getElementById('import-file-input').click()"
+               ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+               ondragleave="this.style.borderColor='var(--border2)'"
+               ondrop="handleImportDrop(event)">
+            <div style="font-size:32px;margin-bottom:8px">📁</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px">اسحب ملف CSV أو JSON هنا</div>
+            <div style="font-size:12px;color:var(--text2)">أو انقر للاختيار من الجهاز</div>
+            <input type="file" id="import-file-input" accept=".csv,.json" style="display:none" onchange="handleImportFile(this.files[0])">
+          </div>
+          <div id="import-file-info" style="display:none;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:12px"></div>
+          <button class="btn btn-primary" id="import-submit-btn" onclick="submitImport()" style="display:none">📤 بدء الاستيراد</button>
+          <div id="import-result" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: SEARCH STATS -->
+    <div class="page" id="page-search-stats">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <select id="stats-period" onchange="loadSearchStats()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:13px">
+          <option value="7">آخر 7 أيام</option>
+          <option value="30" selected>آخر 30 يوم</option>
+          <option value="90">آخر 90 يوم</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadSearchStats()">🔄 تحديث</button>
+      </div>
+      <div id="search-stats-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div class="page-loader"><div class="spinner"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">💊 أكثر الأدوية توفراً</div></div>
+          <div id="top-medicines-stats" style="padding-top:8px"><div class="page-loader"><div class="spinner"></div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">🏷️ توزيع حسب الفئة</div></div>
+          <div id="by-category-stats" style="padding-top:8px"><div class="page-loader"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">🏥 الصيدليات الأكثر نشاطاً</div></div>
+          <div id="active-pharmacies-stats" style="padding-top:8px"><div class="page-loader"><div class="spinner"></div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">📋 أنواع الأحداث</div></div>
+          <div id="event-types-stats" style="padding-top:8px"><div class="page-loader"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><div class="card-title">📈 النشاط اليومي</div></div>
+        <div id="daily-activity-chart" style="padding-top:12px;overflow-x:auto"></div>
+      </div>
+    </div>
+
     <div class="page" id="page-settings">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <!-- System Info -->
@@ -987,7 +1109,7 @@ const PAGE_TITLES = {
   overview:'نظرة عامة', users:'المستخدمون', pharmacies:'الصيدليات',
   'pharmacy-detail':'تفاصيل الصيدلية', map:'الخريطة',
   medicines:'الأدوية', lowstock:'مخزون منخفض',
-  webhooks:'سجل الأحداث', settings:'الإعدادات',
+  webhooks:'سجل الأحداث', backup:'النسخ الاحتياطي', 'search-stats':'إحصائيات البحث', settings:'الإعدادات',
 };
 
 function navigate(page, params={}) {
@@ -1018,6 +1140,8 @@ function loadPageData(page, params={}) {
     case 'medicines':        loadMedicines(1); break;
     case 'lowstock':         loadLowStock(); break;
     case 'webhooks':         loadWebhooks(1); break;
+    case 'backup':           loadBackupPage(); break;
+    case 'search-stats':     loadSearchStats(); break;
     case 'settings':         loadSettings(); break;
   }
 }
@@ -1928,6 +2052,234 @@ function avatarColor(name) {
 // PUT  /api/dashboard/users/:id
 // DELETE /api/dashboard/users/:id
 // POST /api/dashboard/users/:id/send-otp
+
+
+/* ════════════════════════════════════════
+   BACKUP & IMPORT
+════════════════════════════════════════ */
+let importFileData = null;
+let importFileType = null;
+
+function loadBackupPage() {
+  // populate pharmacy selects
+  const selects = ['backup-pharmacy-select','clear-pharmacy-select','import-pharmacy-select'];
+  selects.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '<option value="">-- اختر صيدلية --</option>';
+    allPharmacies.forEach(p => {
+      el.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+    });
+  });
+}
+
+async function downloadFullBackup() {
+  try {
+    toast('جارٍ تحضير النسخة الاحتياطية...', 'success');
+    const res = await fetch(API + '/backup/full');
+    if (!res.ok) throw new Error('فشل التنزيل');
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `pharmacy-hub-full-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('تم تنزيل النسخة الاحتياطية ✅');
+  } catch(e) { toast('فشل تنزيل النسخة الاحتياطية', 'error'); }
+}
+
+async function downloadPharmacyBackup(format) {
+  const id = document.getElementById('backup-pharmacy-select').value;
+  if (!id) { toast('اختر صيدلية أولاً', 'warning'); return; }
+  try {
+    const endpoint = format === 'csv' ? `/backup/pharmacy/${id}/csv` : `/backup/pharmacy/${id}`;
+    const res = await fetch(API + endpoint);
+    if (!res.ok) throw new Error('فشل التنزيل');
+    const blob = await res.blob();
+    const cd   = res.headers.get('Content-Disposition') || '';
+    const name = cd.match(/filename="(.+)"/)?.[1] || `pharmacy-${id}.${format}`;
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = name; a.click();
+    URL.revokeObjectURL(url);
+    toast(`تم تنزيل ملف ${format.toUpperCase()} ✅`);
+  } catch(e) { toast('فشل التنزيل', 'error'); }
+}
+
+function confirmClearStock() {
+  const id   = document.getElementById('clear-pharmacy-select').value;
+  const name = document.getElementById('clear-pharmacy-select').selectedOptions[0]?.text || '';
+  if (!id) { toast('اختر صيدلية أولاً', 'warning'); return; }
+  confirmAction(`هل أنت متأكد من تفريغ مخزون "${name}"؟ لا يمكن التراجع عن هذا الإجراء.`, async () => {
+    try {
+      const res = await fetch(API + `/backup/pharmacy/${id}/clear`, { method: 'DELETE' });
+      const d   = await res.json();
+      const el  = document.getElementById('clear-result');
+      el.style.display = 'block';
+      el.innerHTML = `<div style="padding:10px 14px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);border-radius:8px;font-size:13px;color:var(--success)">✅ تم تفريغ المخزون بنجاح — حُذف ${d.deleted} سجل</div>`;
+      toast(`تم تفريغ مخزون ${name} (${d.deleted} سجل)`);
+    } catch(e) { toast('فشل تفريغ المخزون', 'error'); }
+  });
+}
+
+function handleImportFile(file) {
+  if (!file) return;
+  importFileType = file.name.endsWith('.csv') ? 'csv' : 'json';
+  const reader = new FileReader();
+  reader.onload = e => {
+    importFileData = e.target.result;
+    const info = document.getElementById('import-file-info');
+    info.style.display = 'block';
+    const lines = importFileData.split('\n').length;
+    info.innerHTML = `📎 <strong>${file.name}</strong> — ${(file.size/1024).toFixed(1)} KB — ${lines} سطر — نوع: ${importFileType.toUpperCase()}`;
+    document.getElementById('import-submit-btn').style.display = '';
+    document.getElementById('import-result').style.display = 'none';
+  };
+  reader.readAsText(file);
+}
+
+function handleImportDrop(e) {
+  e.preventDefault();
+  document.getElementById('import-dropzone').style.borderColor = 'var(--border2)';
+  const file = e.dataTransfer.files[0];
+  if (file) handleImportFile(file);
+}
+
+async function submitImport() {
+  const id   = document.getElementById('import-pharmacy-select').value;
+  const mode = document.getElementById('import-mode').value;
+  if (!id) { toast('اختر صيدلية أولاً', 'warning'); return; }
+  if (!importFileData) { toast('اختر ملفاً للاستيراد', 'warning'); return; }
+
+  const btn = document.getElementById('import-submit-btn');
+  btn.disabled = true; btn.textContent = '⏳ جارٍ الاستيراد...';
+
+  try {
+    let endpoint, body;
+    if (importFileType === 'csv') {
+      endpoint = `/backup/pharmacy/${id}/import/csv`;
+      body = { csv: importFileData, mode };
+    } else {
+      let parsed;
+      try { parsed = JSON.parse(importFileData); } catch { toast('ملف JSON غير صالح', 'error'); return; }
+      endpoint = `/backup/pharmacy/${id}/import/json`;
+      body = { data: parsed, mode };
+    }
+
+    const res = await fetch(API + endpoint, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body),
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.message || 'فشل الاستيراد');
+
+    const el = document.getElementById('import-result');
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div style="padding:14px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px">
+        <div style="font-size:13px;font-weight:600;color:var(--success);margin-bottom:8px">✅ تم الاستيراد بنجاح</div>
+        <div style="font-size:12px;color:var(--text2);display:flex;gap:16px">
+          <span>✔️ مستورد: <strong style="color:var(--text)">${d.imported}</strong></span>
+          <span>⏭️ متخطى: <strong style="color:var(--text)">${d.skipped}</strong></span>
+        </div>
+        ${d.errors?.length ? `<div style="margin-top:8px;font-size:11px;color:var(--danger)">${d.errors.slice(0,5).join('<br>')}</div>` : ''}
+      </div>`;
+    toast(`تم استيراد ${d.imported} سجل بنجاح`);
+  } catch(e) { toast(e.message || 'فشل الاستيراد', 'error'); }
+  finally { btn.disabled = false; btn.textContent = '📤 بدء الاستيراد'; }
+}
+
+/* ════════════════════════════════════════
+   SEARCH STATS
+════════════════════════════════════════ */
+async function loadSearchStats() {
+  const days = document.getElementById('stats-period')?.value || 30;
+  try {
+    const d = await fetch(API + `/backup/search-stats?days=${days}`).then(r => r.json());
+
+    // Summary cards
+    const s = d.summary;
+    document.getElementById('search-stats-summary').innerHTML = [
+      { icon:'💊', val: s.total_medicines?.toLocaleString(), label:'إجمالي الأدوية', color:'var(--accent)' },
+      { icon:'✅', val: s.available_now?.toLocaleString(),  label:'متوفر الآن', color:'var(--success)' },
+      { icon:'❌', val: s.out_of_stock?.toLocaleString(),   label:'نفذ المخزون', color:'var(--danger)' },
+      { icon:'🔗', val: s.total_events?.toLocaleString(),   label:`أحداث آخر ${days} يوم`, color:'var(--purple)' },
+    ].map(c => `
+      <div class="stat-card" style="padding:16px">
+        <div style="font-size:22px;margin-bottom:6px">${c.icon}</div>
+        <div style="font-size:24px;font-weight:700;color:${c.color}">${c.val ?? 0}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${c.label}</div>
+      </div>`).join('');
+
+    // Top medicines
+    document.getElementById('top-medicines-stats').innerHTML = d.top_medicines?.slice(0, 10).map((m, i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <span style="color:var(--muted);min-width:18px;text-align:center">${i+1}</span>
+        <div style="flex:1;overflow:hidden">
+          <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}</div>
+          <div style="font-size:11px;color:var(--text2)">${m.category ?? 'غير مصنف'} · ${m.pharmacy_count} صيدلية</div>
+        </div>
+        <span class="badge badge-blue" style="font-size:11px">${m.total_qty?.toLocaleString()}</span>
+      </div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--muted)">لا توجد بيانات</div>';
+
+    // By category
+    const maxCat = Math.max(...(d.by_category?.map(c => c.count) || [1]));
+    document.getElementById('by-category-stats').innerHTML = d.by_category?.slice(0, 12).map(c => `
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+          <span>${c.category}</span><span style="color:var(--text2)">${c.count}</span>
+        </div>
+        <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(c.count/maxCat*100)}%;background:var(--accent);border-radius:3px;transition:.3s"></div>
+        </div>
+      </div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--muted)">لا توجد بيانات</div>';
+
+    // Active pharmacies
+    const maxPh = Math.max(...(d.active_pharmacies?.map(p => p.event_count) || [1]));
+    document.getElementById('active-pharmacies-stats').innerHTML = d.active_pharmacies?.map((p, i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <span style="color:var(--muted);min-width:18px;text-align:center">${i+1}</span>
+        <div style="flex:1">
+          <div style="font-weight:500">${p.pharmacy_name}</div>
+          <div style="height:4px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden">
+            <div style="height:100%;width:${Math.round(p.event_count/maxPh*100)}%;background:var(--success);border-radius:2px"></div>
+          </div>
+        </div>
+        <span class="badge badge-green" style="font-size:11px">${p.event_count}</span>
+      </div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--muted)">لا توجد أحداث</div>';
+
+    // Event types
+    document.getElementById('event-types-stats').innerHTML = d.event_types?.map(e => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <span>${evIcon(e.type)} ${eventLabel(e.type)}</span>
+        <span class="badge badge-gray">${e.count}</span>
+      </div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--muted)">لا توجد بيانات</div>';
+
+    // Daily activity bar chart
+    const acts = d.daily_activity || [];
+    if (acts.length) {
+      const maxAct = Math.max(...acts.map(a => a.count), 1);
+      const chartH = 80;
+      document.getElementById('daily-activity-chart').innerHTML = `
+        <div style="display:flex;align-items:flex-end;gap:3px;height:${chartH+30}px;padding:0 4px">
+          ${acts.map(a => {
+            const h = Math.max(4, Math.round(a.count / maxAct * chartH));
+            const day = a.date.slice(5); // MM-DD
+            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:20px" title="${a.date}: ${a.count}">
+              <div style="font-size:9px;color:var(--muted)">${a.count}</div>
+              <div style="width:100%;height:${h}px;background:var(--accent);border-radius:3px 3px 0 0;opacity:.8;transition:.3s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.8"></div>
+              <div style="font-size:9px;color:var(--muted);white-space:nowrap">${day}</div>
+            </div>`;
+          }).join('')}
+        </div>`;
+    } else {
+      document.getElementById('daily-activity-chart').innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted)">لا توجد بيانات للفترة المحددة</div>';
+    }
+
+  } catch(e) { toast('خطأ في تحميل الإحصائيات', 'error'); }
+}
 
 /* ════════════════════════════════════════
    INIT
