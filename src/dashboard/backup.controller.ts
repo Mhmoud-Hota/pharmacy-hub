@@ -76,6 +76,16 @@ export class BackupController {
     return this.svc.importFromJson(id, body.data, body.mode ?? 'merge');
   }
 
+  // ── استيراد SQL (phpMyAdmin dump) ────────────────────────────────────────
+  @Post('pharmacy/:id/import/sql')
+  @HttpCode(HttpStatus.OK)
+  importSql(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { sql: string; mode?: 'merge' | 'replace' },
+  ) {
+    return this.svc.importFromSql(id, body.sql, body.mode ?? 'merge');
+  }
+
   // ── إحصائيات البحث ───────────────────────────────────────────────────────
   @Get('search-stats')
   getSearchStats(@Query('days') days = '30') {

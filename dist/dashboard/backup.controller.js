@@ -51,6 +51,9 @@ let BackupController = class BackupController {
     importJson(id, body) {
         return this.svc.importFromJson(id, body.data, body.mode ?? 'merge');
     }
+    importSql(id, body) {
+        return this.svc.importFromSql(id, body.sql, body.mode ?? 'merge');
+    }
     getSearchStats(days = '30') {
         return this.svc.getSearchStats(+days);
     }
@@ -105,6 +108,15 @@ __decorate([
     __metadata("design:paramtypes", [Number, Object]),
     __metadata("design:returntype", void 0)
 ], BackupController.prototype, "importJson", null);
+__decorate([
+    (0, common_1.Post)('pharmacy/:id/import/sql'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:returntype", void 0)
+], BackupController.prototype, "importSql", null);
 __decorate([
     (0, common_1.Get)('search-stats'),
     __param(0, (0, common_1.Query)('days')),

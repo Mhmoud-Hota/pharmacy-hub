@@ -773,9 +773,65 @@ td { padding: 11px 14px; vertical-align: middle; }
         </div>
         <div id="clear-result" style="margin-top:12px;display:none"></div>
       </div>
+      <!-- ── استيراد SQLite (medicore.db) ── -->
+      <div class="card" style="border-color:rgba(6,182,212,.25)">
+        <div class="card-header">
+          <div class="card-title" style="color:var(--accent2)">🗄️ استيراد من MEDICORE (SQLite)</div>
+          <div style="font-size:12px;color:var(--text2)">رفع ملف <code style="background:var(--surface3);padding:1px 5px;border-radius:4px;font-family:var(--mono)">.db</code> من MEDICORE مباشرةً — يُستخرج منه المخزون تلقائياً</div>
+        </div>
+        <div style="padding:16px 0 0;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:200px">
+              <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">الصيدلية المستهدفة</label>
+              <select id="sqlite-pharmacy-select" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px"><option value="">-- اختر صيدلية --</option></select>
+            </div>
+            <div style="min-width:160px">
+              <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">وضع الاستيراد</label>
+              <select id="sqlite-import-mode" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px">
+                <option value="false">دمج (merge)</option>
+                <option value="true">استبدال كامل (replace)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- hint -->
+          <div style="padding:10px 14px;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.15);border-radius:8px;font-size:12px;color:var(--accent2);display:flex;align-items:flex-start;gap:8px">
+            <span style="font-size:15px;flex-shrink:0">💡</span>
+            <div>يُقرأ الملف على الخادم مباشرةً — جداول <strong>medicines</strong> و<strong>batches</strong> — ويُرسَل لـ Pharmacy Hub بنفس منطق الـ Bulk Import.</div>
+          </div>
+
+          <div style="border:2px dashed rgba(6,182,212,.3);border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:var(--transition)"
+               id="sqlite-dropzone"
+               onclick="document.getElementById('sqlite-file-input').click()"
+               ondragover="event.preventDefault();this.style.borderColor='var(--accent2)'"
+               ondragleave="this.style.borderColor='rgba(6,182,212,.3)'"
+               ondrop="handleSqliteDrop(event)">
+            <div style="font-size:36px;margin-bottom:8px">🗄️</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px">اسحب ملف <code style="background:var(--surface3);padding:1px 6px;border-radius:4px;font-family:var(--mono)">.db</code> هنا</div>
+            <div style="font-size:12px;color:var(--text2)">أو انقر للاختيار من الجهاز (.db / .sqlite / .sqlite3)</div>
+            <input type="file" id="sqlite-file-input" accept=".db,.sqlite,.sqlite3" style="display:none" onchange="handleSqliteFile(this.files[0])">
+          </div>
+
+          <div id="sqlite-file-info" style="display:none;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:12px;display:flex;align-items:center;gap:10px"></div>
+
+          <button class="btn" id="sqlite-submit-btn" onclick="submitSqliteImport()" style="display:none;background:rgba(6,182,212,.12);color:var(--accent2);border:1px solid rgba(6,182,212,.25)">
+            🗄️ بدء استيراد SQLite
+          </button>
+
+          <!-- progress bar (مخفية بالبداية) -->
+          <div id="sqlite-progress-wrap" style="display:none">
+            <div style="font-size:12px;color:var(--text2);margin-bottom:6px" id="sqlite-progress-label">جارٍ الرفع...</div>
+            <div class="progress"><div class="progress-bar" id="sqlite-progress-bar" style="width:0%;background:var(--accent2)"></div></div>
+          </div>
+
+          <div id="sqlite-result" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- ── استيراد عام (CSV / JSON / SQL) ── -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title">📤 استيراد مخزون</div>
+          <div class="card-title">📤 استيراد مخزون (CSV / JSON)</div>
           <div style="font-size:12px;color:var(--text2)">رفع ملف CSV أو JSON لاستيراد مخزون صيدلية</div>
         </div>
         <div style="padding:16px 0 0;display:flex;flex-direction:column;gap:14px">
@@ -799,9 +855,9 @@ td { padding: 11px 14px; vertical-align: middle; }
                ondragleave="this.style.borderColor='var(--border2)'"
                ondrop="handleImportDrop(event)">
             <div style="font-size:32px;margin-bottom:8px">📁</div>
-            <div style="font-size:13px;font-weight:600;margin-bottom:4px">اسحب ملف CSV أو JSON هنا</div>
-            <div style="font-size:12px;color:var(--text2)">أو انقر للاختيار من الجهاز</div>
-            <input type="file" id="import-file-input" accept=".csv,.json" style="display:none" onchange="handleImportFile(this.files[0])">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px">اسحب ملف CSV أو JSON أو SQL هنا</div>
+            <div style="font-size:12px;color:var(--text2)">أو انقر للاختيار من الجهاز (.csv, .json, .sql)</div>
+            <input type="file" id="import-file-input" accept=".csv,.json,.sql" style="display:none" onchange="handleImportFile(this.files[0])">
           </div>
           <div id="import-file-info" style="display:none;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:12px"></div>
           <button class="btn btn-primary" id="import-submit-btn" onclick="submitImport()" style="display:none">📤 بدء الاستيراد</button>
@@ -2066,9 +2122,9 @@ let importFileData = null;
 let importFileType = null;
 
 function loadBackupPage() {
-  // populate pharmacy selects
-  const selects = ['backup-pharmacy-select','clear-pharmacy-select','import-pharmacy-select'];
-  selects.forEach(id => {
+  // populate legacy selects (pass id)
+  const legacySelects = ['backup-pharmacy-select','clear-pharmacy-select','import-pharmacy-select'];
+  legacySelects.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.innerHTML = '<option value="">-- اختر صيدلية --</option>';
@@ -2076,6 +2132,14 @@ function loadBackupPage() {
       el.innerHTML += `<option value="${p.id}">${p.name}</option>`;
     });
   });
+  // sqlite select passes slug (needed for /import-sqlite/:slug)
+  const slEl = document.getElementById('sqlite-pharmacy-select');
+  if (slEl) {
+    slEl.innerHTML = '<option value="">-- اختر صيدلية --</option>';
+    allPharmacies.forEach(p => {
+      slEl.innerHTML += `<option value="${p.slug}">${p.name}</option>`;
+    });
+  }
 }
 
 async function downloadFullBackup() {
@@ -2130,14 +2194,15 @@ function confirmClearStock() {
 
 function handleImportFile(file) {
   if (!file) return;
-  importFileType = file.name.endsWith('.csv') ? 'csv' : 'json';
+  importFileType = file.name.endsWith('.csv') ? 'csv' : file.name.endsWith('.sql') ? 'sql' : 'json';
   const reader = new FileReader();
   reader.onload = e => {
     importFileData = e.target.result;
     const info = document.getElementById('import-file-info');
     info.style.display = 'block';
     const lines = importFileData.split('\n').length;
-    info.innerHTML = `📎 <strong>${file.name}</strong> — ${(file.size/1024).toFixed(1)} KB — ${lines} سطر — نوع: ${importFileType.toUpperCase()}`;
+    const typeLabel = importFileType === 'sql' ? '🗄️ SQL Dump' : importFileType === 'csv' ? '📄 CSV' : '📋 JSON';
+    info.innerHTML = `📎 <strong>${file.name}</strong> — ${(file.size/1024).toFixed(1)} KB — ${lines} سطر — ${typeLabel}`;
     document.getElementById('import-submit-btn').style.display = '';
     document.getElementById('import-result').style.display = 'none';
   };
@@ -2165,6 +2230,9 @@ async function submitImport() {
     if (importFileType === 'csv') {
       endpoint = `/backup/pharmacy/${id}/import/csv`;
       body = { csv: importFileData, mode };
+    } else if (importFileType === 'sql') {
+      endpoint = `/backup/pharmacy/${id}/import/sql`;
+      body = { sql: importFileData, mode };
     } else {
       let parsed;
       try { parsed = JSON.parse(importFileData); } catch { toast('ملف JSON غير صالح', 'error'); return; }
@@ -2191,9 +2259,113 @@ async function submitImport() {
         </div>
         ${d.errors?.length ? `<div style="margin-top:8px;font-size:11px;color:var(--danger)">${d.errors.slice(0,5).join('<br>')}</div>` : ''}
       </div>`;
-    toast(`تم استيراد ${d.imported} سجل بنجاح`);
+    toast(`تم استيراد ${d.imported ?? d.summary?.processed ?? 0} سجل بنجاح`);
   } catch(e) { toast(e.message || 'فشل الاستيراد', 'error'); }
   finally { btn.disabled = false; btn.textContent = '📤 بدء الاستيراد'; }
+}
+
+/* ════════════════════════════════════════
+   SQLITE IMPORT (medicore.db)
+════════════════════════════════════════ */
+let sqliteFile = null;
+
+function handleSqliteFile(file) {
+  if (!file) return;
+  const valid = /\.(db|sqlite|sqlite3)$/i.test(file.name);
+  if (!valid) { toast('الامتداد غير مدعوم — يجب أن يكون .db أو .sqlite أو .sqlite3', 'error'); return; }
+  sqliteFile = file;
+
+  const info = document.getElementById('sqlite-file-info');
+  info.style.display = 'flex';
+  info.innerHTML = `<span style="font-size:18px">🗄️</span> <strong>${file.name}</strong> <span style="color:var(--text2);margin-right:4px">— ${(file.size/1024).toFixed(1)} KB</span>`;
+
+  document.getElementById('sqlite-submit-btn').style.display = '';
+  document.getElementById('sqlite-result').style.display = 'none';
+  // reset dropzone border
+  document.getElementById('sqlite-dropzone').style.borderColor = 'rgba(6,182,212,.5)';
+}
+
+function handleSqliteDrop(e) {
+  e.preventDefault();
+  document.getElementById('sqlite-dropzone').style.borderColor = 'rgba(6,182,212,.3)';
+  const file = e.dataTransfer.files[0];
+  if (file) handleSqliteFile(file);
+}
+
+async function submitSqliteImport() {
+  const slug = document.getElementById('sqlite-pharmacy-select').value;
+  if (!slug) { toast('اختر صيدلية أولاً', 'warning'); return; }
+  if (!sqliteFile) { toast('اختر ملف .db أولاً', 'warning'); return; }
+
+  const replaceExisting = document.getElementById('sqlite-import-mode').value;  // 'true'|'false'
+  const btn = document.getElementById('sqlite-submit-btn');
+  btn.disabled = true; btn.textContent = '⏳ جارٍ الرفع والاستيراد...';
+
+  // show progress
+  const pwrap = document.getElementById('sqlite-progress-wrap');
+  const pbar  = document.getElementById('sqlite-progress-bar');
+  const plbl  = document.getElementById('sqlite-progress-label');
+  pwrap.style.display = 'block';
+  pbar.style.width = '20%';
+  plbl.textContent = 'جارٍ رفع الملف...';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', sqliteFile, sqliteFile.name);
+
+    pbar.style.width = '50%';
+    plbl.textContent = 'جارٍ المعالجة على الخادم...';
+
+    // نجيب الـ API key من بيانات الصيدلية المحفوظة
+    const ph = allPharmacies.find(p => p.slug === slug);
+    if (!ph?.apiKey) throw new Error('لم يُعثر على API key للصيدلية — حاول تحديث الصفحة');
+
+    const res = await fetch(
+      `/inventory/import-sqlite/${slug}?replace_existing=${replaceExisting}`,
+      { method: 'POST', body: formData, headers: { 'X-Pharmacy-Api-Key': ph.apiKey } }
+    );
+
+    pbar.style.width = '90%';
+    const d = await res.json();
+
+    if (!res.ok) throw new Error(d.message || `HTTP ${res.status}`);
+
+    pbar.style.width = '100%';
+    pbar.style.background = 'var(--success)';
+    plbl.textContent = 'اكتمل الاستيراد ✅';
+
+    const el = document.getElementById('sqlite-result');
+    el.style.display = 'block';
+    const s = d.summary || {};
+    el.innerHTML = `
+      <div style="padding:14px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:10px">
+        <div style="font-size:13px;font-weight:700;color:var(--success);margin-bottom:10px">✅ ${d.message}</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px">
+          ${[
+            ['الكلي', s.total ?? 0, 'var(--text)'],
+            ['أُضيف', s.created ?? 0, 'var(--success)'],
+            ['حُدِّث', s.updated ?? 0, 'var(--accent)'],
+            ['فشل', s.skipped ?? 0, s.skipped > 0 ? 'var(--danger)' : 'var(--muted)'],
+          ].map(([lbl,val,col]) => `
+            <div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center">
+              <div style="font-size:18px;font-weight:700;color:${col};font-family:var(--mono)">${val}</div>
+              <div style="font-size:10px;color:var(--text2);margin-top:2px">${lbl}</div>
+            </div>`).join('')}
+        </div>
+        ${d.errors?.length ? `<div style="margin-top:8px;font-size:11px;color:var(--danger);background:rgba(239,68,68,.06);border-radius:6px;padding:8px">${d.errors.slice(0,5).map(e=>`<div>• ${e}</div>`).join('')}${d.errors.length>5?`<div style="color:var(--muted)">…وغيرها ${d.errors.length-5}</div>`:''}</div>` : ''}
+        <div style="margin-top:10px;font-size:11px;color:var(--text2)">📁 ${d.file?.name} — ${d.file?.size_kb} KB</div>
+      </div>`;
+
+    toast(d.message);
+  } catch(e) {
+    pbar.style.background = 'var(--danger)';
+    plbl.textContent = 'فشل الاستيراد';
+    toast(e.message || 'فشل استيراد الملف', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🗄️ بدء استيراد SQLite';
+    setTimeout(() => { pwrap.style.display = 'none'; pbar.style.width='0%'; pbar.style.background='var(--accent2)'; }, 3000);
+  }
 }
 
 /* ════════════════════════════════════════

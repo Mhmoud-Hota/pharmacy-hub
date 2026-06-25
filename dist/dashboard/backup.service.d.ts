@@ -166,5 +166,15 @@ export declare class BackupService {
             count: number;
         }[];
     }>;
+    importFromSql(pharmacyId: number, sqlContent: string, mode?: 'merge' | 'replace'): Promise<{
+        imported: number;
+        skipped: number;
+        errors: string[];
+        detected_rows: number;
+    }>;
+    private parseSqlMedicines;
+    private splitSqlRows;
+    private parseSqlRow;
     private parseCsvLine;
+    private sqlValue;
 }

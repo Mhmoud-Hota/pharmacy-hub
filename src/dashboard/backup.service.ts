@@ -415,16 +415,231 @@ export class BackupService {
     };
   }
 
-  // ── helper ──────────────────────────────────────────────
-  private parseCsvLine(line: string): string[] {
-    const cols: string[] = [];
-    let cur = '', inQuote = false;
-    for (const ch of line) {
-      if (ch === '"') { inQuote = !inQuote; cur += ch; }
-      else if (ch === ',' && !inQuote) { cols.push(cur); cur = ''; }
-      else cur += ch;
+  // ══════════════════════════════════════════════════════════
+  // 8. استيراد مخزون من ملف SQL (phpMyAdmin dump)
+  // ══════════════════════════════════════════════════════════
+  async importFromSql(
+    pharmacyId: number,
+    sqlContent: string,
+    mode: 'merge' | 'replace' = 'merge',
+  ): Promise<{ imported: number; skipped: number; errors: string[]; detected_rows: number }> {
+    const pharmacy = await this.prisma.pharmacy.findUnique({ where: { id: pharmacyId } });
+    if (!pharmacy) throw new NotFoundException('الصيدلية غير موجودة');
+
+    // ── 1. استخراج INSERT INTO `medicines` ──────────────────
+    const rows = this.parseSqlMedicines(sqlContent);
+    if (rows.length === 0) {
+      throw new BadRequestException(
+        'لم يتم العثور على جدول medicines في الملف. تأكد أن الملف يحتوي على INSERT INTO `medicines`',
+      );
     }
-    cols.push(cur);
-    return cols;
+
+    if (mode === 'replace') {
+      await this.prisma.pharmacyStock.deleteMany({ where: { pharmacyId } });
+    }
+
+    let imported = 0, skipped = 0;
+    const errors: string[] = [];
+
+    for (const row of rows) {
+      try {
+        const medicineName = row.trad_name || row.name;
+        if (!medicineName || row.is_deleted === '1' || row.is_deleted === 1) {
+          skipped++;
+          continue;
+        }
+
+        const quantity     = parseInt(row.quantity as any) || 0;
+        const price        = row.price ? parseFloat(row.price as any) : null;
+        const barcode      = row.barcode || null;
+        const unit         = row.unit || null;
+        const tabletsPerBox = row.tablets_per_box ? parseInt(row.tablets_per_box as any) : null;
+        const expiryDate   = row.expiry_date && row.expiry_date !== 'NULL'
+          ? new Date(row.expiry_date as string) : null;
+        const scientificName = row.scientific_name || null;
+        const category     = row.category || null;
+
+        // find or create master medicine
+        let medicine = await this.prisma.masterMedicine.findFirst({
+          where: {
+            OR: [
+              ...(barcode ? [{ barcode }] : []),
+              { canonicalName: medicineName },
+            ],
+          },
+        });
+
+        if (!medicine) {
+          medicine = await this.prisma.masterMedicine.create({
+            data: {
+              canonicalName:  medicineName,
+              scientificName: scientificName || undefined,
+              barcode:        barcode || undefined,
+              category:       category || undefined,
+              unit:           unit || undefined,
+              tabletsPerBox:  tabletsPerBox || undefined,
+            },
+          });
+        }
+
+        // upsert stock
+        await this.prisma.pharmacyStock.upsert({
+          where: {
+            pharmacyId_masterMedicineId: {
+              pharmacyId,
+              masterMedicineId: medicine.id,
+            },
+          },
+          create: {
+            pharmacyId,
+            masterMedicineId: medicine.id,
+            quantity,
+            price:          price !== null ? price as any : undefined,
+            unit:           unit || undefined,
+            tabletsPerBox:  tabletsPerBox || undefined,
+            expiryDate:     expiryDate || undefined,
+            localMedicineId: row.id ? parseInt(row.id as any) : undefined,
+          },
+          update: {
+            quantity,
+            price:          price !== null ? price as any : undefined,
+            unit:           unit || undefined,
+            tabletsPerBox:  tabletsPerBox || undefined,
+            expiryDate:     expiryDate || undefined,
+            localMedicineId: row.id ? parseInt(row.id as any) : undefined,
+            lastSyncAt:     new Date(),
+          },
+        });
+
+        imported++;
+      } catch (e: any) {
+        errors.push(`دواء ${row.name ?? '?'}: ${e.message}`);
+        skipped++;
+      }
+    }
+
+    return { imported, skipped, errors: errors.slice(0, 20), detected_rows: rows.length };
   }
+
+  // ── SQL parser ──────────────────────────────────────────────
+  private parseSqlMedicines(sql: string): Record<string, any>[] {
+    const rows: Record<string, any>[] = [];
+
+    // استخراج اسم الأعمدة من أول INSERT
+    const headerMatch = sql.match(
+      /INSERT INTO [`"]?medicines[`"]?\s*\(([^)]+)\)/i,
+    );
+    if (!headerMatch) return rows;
+
+    const columns = headerMatch[1]
+      .split(',')
+      .map(c => c.trim().replace(/[`"]/g, ''));
+
+    // استخراج كل كتلة VALUES
+    const insertBlocks = sql.match(
+      /INSERT INTO [`"]?medicines[`"]?[^;]+;/gi,
+    ) ?? [];
+
+    for (const block of insertBlocks) {
+      // استخراج قيم كل صف
+      const valuesSection = block.replace(/INSERT INTO [`"]?medicines[`"]?[^V]+VALUES\s*/i, '');
+      const rowStrings = this.splitSqlRows(valuesSection);
+
+      for (const rowStr of rowStrings) {
+        const values = this.parseSqlRow(rowStr);
+        if (values.length === 0) continue;
+        const obj: Record<string, any> = {};
+        columns.forEach((col, i) => {
+          obj[col] = values[i] ?? null;
+        });
+        rows.push(obj);
+      }
+    }
+
+    return rows;
+  }
+
+  private splitSqlRows(valuesSection: string): string[] {
+    const rows: string[] = [];
+    let depth = 0, start = -1, inStr = false, escape = false;
+
+    for (let i = 0; i < valuesSection.length; i++) {
+      const ch = valuesSection[i];
+
+      if (escape) { escape = false; continue; }
+      if (ch === '\\') { escape = true; continue; }
+      if (ch === "'") { inStr = !inStr; continue; }
+      if (inStr) continue;
+
+      if (ch === '(') {
+        if (depth === 0) start = i;
+        depth++;
+      } else if (ch === ')') {
+        depth--;
+        if (depth === 0 && start !== -1) {
+          rows.push(valuesSection.slice(start + 1, i));
+          start = -1;
+        }
+      }
+    }
+    return rows;
+  }
+
+  private parseSqlRow(rowStr: string): (string | null)[] {
+    const values: (string | null)[] = [];
+    let cur = '', inStr = false, escape = false;
+
+    for (let i = 0; i < rowStr.length; i++) {
+      const ch = rowStr[i];
+
+      if (escape) { cur += ch; escape = false; continue; }
+      if (ch === '\\') { escape = true; continue; }
+
+      if (ch === "'") {
+        if (inStr) {
+          // check for escaped quote ''
+          if (rowStr[i + 1] === "'") { cur += "'"; i++; continue; }
+          inStr = false;
+        } else {
+          inStr = true;
+        }
+        continue;
+      }
+
+      if (!inStr && ch === ',') {
+        values.push(this.sqlValue(cur.trim()));
+        cur = '';
+        continue;
+      }
+
+      cur += ch;
+    }
+    values.push(this.sqlValue(cur.trim()));
+    return values;
+  }
+private parseCsvLine(line: string): string[] {
+  const cols: string[] = [];
+  let cur = '';
+  let inQuote = false;
+
+  for (const ch of line) {
+    if (ch === '"') {
+      inQuote = !inQuote;
+      cur += ch;
+    } else if (ch === ',' && !inQuote) {
+      cols.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+
+  cols.push(cur);
+  return cols;
+}
+  private sqlValue(v: string): string | null {
+    if (v === 'NULL' || v === '') return null;
+    return v;
+  }
+   
 }

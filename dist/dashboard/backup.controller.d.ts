@@ -24,6 +24,15 @@ export declare class BackupController {
         imported: number;
         skipped: number;
     }>;
+    importSql(id: number, body: {
+        sql: string;
+        mode?: 'merge' | 'replace';
+    }): Promise<{
+        imported: number;
+        skipped: number;
+        errors: string[];
+        detected_rows: number;
+    }>;
     getSearchStats(days?: string): Promise<{
         period: {
             days: number;

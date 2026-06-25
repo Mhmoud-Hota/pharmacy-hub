@@ -360,9 +360,192 @@ let BackupService = class BackupService {
                 .map(([type, count]) => ({ type, count })),
         };
     }
+    async importFromSql(pharmacyId, sqlContent, mode = 'merge') {
+        const pharmacy = await this.prisma.pharmacy.findUnique({ where: { id: pharmacyId } });
+        if (!pharmacy)
+            throw new common_1.NotFoundException('الصيدلية غير موجودة');
+        const rows = this.parseSqlMedicines(sqlContent);
+        if (rows.length === 0) {
+            throw new common_1.BadRequestException('لم يتم العثور على جدول medicines في الملف. تأكد أن الملف يحتوي على INSERT INTO `medicines`');
+        }
+        if (mode === 'replace') {
+            await this.prisma.pharmacyStock.deleteMany({ where: { pharmacyId } });
+        }
+        let imported = 0, skipped = 0;
+        const errors = [];
+        for (const row of rows) {
+            try {
+                const medicineName = row.trad_name || row.name;
+                if (!medicineName || row.is_deleted === '1' || row.is_deleted === 1) {
+                    skipped++;
+                    continue;
+                }
+                const quantity = parseInt(row.quantity) || 0;
+                const price = row.price ? parseFloat(row.price) : null;
+                const barcode = row.barcode || null;
+                const unit = row.unit || null;
+                const tabletsPerBox = row.tablets_per_box ? parseInt(row.tablets_per_box) : null;
+                const expiryDate = row.expiry_date && row.expiry_date !== 'NULL'
+                    ? new Date(row.expiry_date) : null;
+                const scientificName = row.scientific_name || null;
+                const category = row.category || null;
+                let medicine = await this.prisma.masterMedicine.findFirst({
+                    where: {
+                        OR: [
+                            ...(barcode ? [{ barcode }] : []),
+                            { canonicalName: medicineName },
+                        ],
+                    },
+                });
+                if (!medicine) {
+                    medicine = await this.prisma.masterMedicine.create({
+                        data: {
+                            canonicalName: medicineName,
+                            scientificName: scientificName || undefined,
+                            barcode: barcode || undefined,
+                            category: category || undefined,
+                            unit: unit || undefined,
+                            tabletsPerBox: tabletsPerBox || undefined,
+                        },
+                    });
+                }
+                await this.prisma.pharmacyStock.upsert({
+                    where: {
+                        pharmacyId_masterMedicineId: {
+                            pharmacyId,
+                            masterMedicineId: medicine.id,
+                        },
+                    },
+                    create: {
+                        pharmacyId,
+                        masterMedicineId: medicine.id,
+                        quantity,
+                        price: price !== null ? price : undefined,
+                        unit: unit || undefined,
+                        tabletsPerBox: tabletsPerBox || undefined,
+                        expiryDate: expiryDate || undefined,
+                        localMedicineId: row.id ? parseInt(row.id) : undefined,
+                    },
+                    update: {
+                        quantity,
+                        price: price !== null ? price : undefined,
+                        unit: unit || undefined,
+                        tabletsPerBox: tabletsPerBox || undefined,
+                        expiryDate: expiryDate || undefined,
+                        localMedicineId: row.id ? parseInt(row.id) : undefined,
+                        lastSyncAt: new Date(),
+                    },
+                });
+                imported++;
+            }
+            catch (e) {
+                errors.push(`دواء ${row.name ?? '?'}: ${e.message}`);
+                skipped++;
+            }
+        }
+        return { imported, skipped, errors: errors.slice(0, 20), detected_rows: rows.length };
+    }
+    parseSqlMedicines(sql) {
+        const rows = [];
+        const headerMatch = sql.match(/INSERT INTO [`"]?medicines[`"]?\s*\(([^)]+)\)/i);
+        if (!headerMatch)
+            return rows;
+        const columns = headerMatch[1]
+            .split(',')
+            .map(c => c.trim().replace(/[`"]/g, ''));
+        const insertBlocks = sql.match(/INSERT INTO [`"]?medicines[`"]?[^;]+;/gi) ?? [];
+        for (const block of insertBlocks) {
+            const valuesSection = block.replace(/INSERT INTO [`"]?medicines[`"]?[^V]+VALUES\s*/i, '');
+            const rowStrings = this.splitSqlRows(valuesSection);
+            for (const rowStr of rowStrings) {
+                const values = this.parseSqlRow(rowStr);
+                if (values.length === 0)
+                    continue;
+                const obj = {};
+                columns.forEach((col, i) => {
+                    obj[col] = values[i] ?? null;
+                });
+                rows.push(obj);
+            }
+        }
+        return rows;
+    }
+    splitSqlRows(valuesSection) {
+        const rows = [];
+        let depth = 0, start = -1, inStr = false, escape = false;
+        for (let i = 0; i < valuesSection.length; i++) {
+            const ch = valuesSection[i];
+            if (escape) {
+                escape = false;
+                continue;
+            }
+            if (ch === '\\') {
+                escape = true;
+                continue;
+            }
+            if (ch === "'") {
+                inStr = !inStr;
+                continue;
+            }
+            if (inStr)
+                continue;
+            if (ch === '(') {
+                if (depth === 0)
+                    start = i;
+                depth++;
+            }
+            else if (ch === ')') {
+                depth--;
+                if (depth === 0 && start !== -1) {
+                    rows.push(valuesSection.slice(start + 1, i));
+                    start = -1;
+                }
+            }
+        }
+        return rows;
+    }
+    parseSqlRow(rowStr) {
+        const values = [];
+        let cur = '', inStr = false, escape = false;
+        for (let i = 0; i < rowStr.length; i++) {
+            const ch = rowStr[i];
+            if (escape) {
+                cur += ch;
+                escape = false;
+                continue;
+            }
+            if (ch === '\\') {
+                escape = true;
+                continue;
+            }
+            if (ch === "'") {
+                if (inStr) {
+                    if (rowStr[i + 1] === "'") {
+                        cur += "'";
+                        i++;
+                        continue;
+                    }
+                    inStr = false;
+                }
+                else {
+                    inStr = true;
+                }
+                continue;
+            }
+            if (!inStr && ch === ',') {
+                values.push(this.sqlValue(cur.trim()));
+                cur = '';
+                continue;
+            }
+            cur += ch;
+        }
+        values.push(this.sqlValue(cur.trim()));
+        return values;
+    }
     parseCsvLine(line) {
         const cols = [];
-        let cur = '', inQuote = false;
+        let cur = '';
+        let inQuote = false;
         for (const ch of line) {
             if (ch === '"') {
                 inQuote = !inQuote;
@@ -372,11 +555,17 @@ let BackupService = class BackupService {
                 cols.push(cur);
                 cur = '';
             }
-            else
+            else {
                 cur += ch;
+            }
         }
         cols.push(cur);
         return cols;
+    }
+    sqlValue(v) {
+        if (v === 'NULL' || v === '')
+            return null;
+        return v;
     }
 };
 exports.BackupService = BackupService;
