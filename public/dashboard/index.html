@@ -1625,7 +1625,12 @@ function renderPharmacyDetail(ph, stats) {
 ════════════════════════════════════════ */
 async function loadMap() {
   try {
-    const list = await api('/pharmacies');
+    const raw  = await api('/pharmacies');
+    const list = Array.isArray(raw)
+      ? raw
+      : Object.entries(raw)
+          .filter(([k]) => !isNaN(k))
+          .map(([, v]) => v);
     allPharmacies = list;
     const withLoc = list.filter(p => p.latitude && p.longitude);
     document.getElementById('map-subtitle').textContent = `${withLoc.length} من ${list.length} صيدلية لديها إحداثيات`;

@@ -16,18 +16,18 @@ export declare class BackupService {
         };
         data: {
             pharmacies: {
-                id: number;
                 name: string;
                 slug: string;
-                webhookSecret: string;
-                apiKey: string;
-                isActive: boolean;
-                latitude: number | null;
-                longitude: number | null;
                 address: string | null;
                 city: string | null;
                 phone: string | null;
                 workingHours: string | null;
+                latitude: number | null;
+                longitude: number | null;
+                id: number;
+                apiKey: string;
+                webhookSecret: string;
+                isActive: boolean;
                 createdAt: Date;
                 updatedAt: Date;
             }[];
@@ -36,10 +36,10 @@ export declare class BackupService {
                 createdAt: Date;
                 updatedAt: Date;
                 barcode: string | null;
+                unit: string | null;
+                category: string | null;
                 canonicalName: string;
                 scientificName: string | null;
-                category: string | null;
-                unit: string | null;
                 tabletsPerBox: number | null;
             }[];
             stocks: ({
@@ -53,14 +53,14 @@ export declare class BackupService {
             } & {
                 id: number;
                 updatedAt: Date;
+                pharmacyId: number;
+                price: import("@prisma/client/runtime/library").Decimal | null;
                 unit: string | null;
                 tabletsPerBox: number | null;
-                pharmacyId: number;
                 masterMedicineId: number;
-                quantity: number;
-                price: import("@prisma/client/runtime/library").Decimal | null;
-                expiryDate: Date | null;
                 localMedicineId: number | null;
+                quantity: number;
+                expiryDate: Date | null;
                 lastSyncAt: Date;
             })[];
             aliases: {
@@ -68,8 +68,8 @@ export declare class BackupService {
                 createdAt: Date;
                 pharmacyId: number | null;
                 masterMedicineId: number;
-                localMedicineId: number | null;
                 aliasName: string;
+                localMedicineId: number | null;
                 tradName: string | null;
             }[];
         };
@@ -87,18 +87,18 @@ export declare class BackupService {
         };
         data: {
             pharmacy: {
-                id: number;
                 name: string;
                 slug: string;
-                webhookSecret: string;
-                apiKey: string;
-                isActive: boolean;
-                latitude: number | null;
-                longitude: number | null;
                 address: string | null;
                 city: string | null;
                 phone: string | null;
                 workingHours: string | null;
+                latitude: number | null;
+                longitude: number | null;
+                id: number;
+                apiKey: string;
+                webhookSecret: string;
+                isActive: boolean;
                 createdAt: Date;
                 updatedAt: Date;
             };
