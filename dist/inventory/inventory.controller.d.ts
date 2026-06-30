@@ -1,10 +1,13 @@
 import { InventoryService } from './inventory.service';
 import { GeoSearchService } from './geo-search.service';
 import { SearchMedicineDto } from './dto/search-medicine.dto';
+import { PrismaService } from '../database/prisma.service';
 export declare class InventoryController {
     private readonly inventoryService;
     private readonly geoSearchService;
-    constructor(inventoryService: InventoryService, geoSearchService: GeoSearchService);
+    private readonly prisma;
+    constructor(inventoryService: InventoryService, geoSearchService: GeoSearchService, prisma: PrismaService);
+    private logSearch;
     findMedicine(query: SearchMedicineDto): Promise<{
         query: string;
         user_location: {

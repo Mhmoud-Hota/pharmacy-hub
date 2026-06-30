@@ -16,6 +16,73 @@ let DashboardService = class DashboardService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    async getAnalytics(days = 30) {
+        const since = new Date(Date.now() - days * 86400_000);
+        const prevSince = new Date(Date.now() - days * 2 * 86400_000);
+        const fiveMinAgo = new Date(Date.now() - 5 * 60_000);
+        const [trend, peakHours, topQueries, zeroResultQueries, currentPeriodCount, previousPeriodCount, activeNow, activeToday, heatPoints, totalSearches,] = await Promise.all([
+            this.prisma.$queryRaw `
+        SELECT DATE(created_at) AS day, COUNT(*) AS count
+        FROM search_logs
+        WHERE created_at >= ${since}
+        GROUP BY DATE(created_at)
+        ORDER BY day ASC`,
+            this.prisma.$queryRaw `
+        SELECT HOUR(created_at) AS hour, COUNT(*) AS count
+        FROM search_logs
+        WHERE created_at >= ${since}
+        GROUP BY HOUR(created_at)
+        ORDER BY hour ASC`,
+            this.prisma.$queryRaw `
+        SELECT query, COUNT(*) AS count
+        FROM search_logs
+        WHERE created_at >= ${since} AND query != ''
+        GROUP BY query
+        ORDER BY count DESC
+        LIMIT 10`,
+            this.prisma.$queryRaw `
+        SELECT query, COUNT(*) AS count
+        FROM search_logs
+        WHERE created_at >= ${since} AND results_count = 0 AND query != ''
+        GROUP BY query
+        ORDER BY count DESC
+        LIMIT 10`,
+            this.prisma.searchLog.count({ where: { createdAt: { gte: since } } }),
+            this.prisma.searchLog.count({ where: { createdAt: { gte: prevSince, lt: since } } }),
+            this.prisma.user.count({ where: { lastActiveAt: { gte: fiveMinAgo } } }),
+            this.prisma.user.count({ where: { lastActiveAt: { gte: new Date(Date.now() - 86400_000) } } }),
+            this.prisma.searchLog.findMany({
+                where: { createdAt: { gte: since }, latitude: { not: null }, longitude: { not: null } },
+                select: { latitude: true, longitude: true },
+                take: 2000,
+            }),
+            this.prisma.searchLog.count(),
+        ]);
+        const growthPct = previousPeriodCount === 0
+            ? (currentPeriodCount > 0 ? 100 : 0)
+            : Math.round(((currentPeriodCount - previousPeriodCount) / previousPeriodCount) * 1000) / 10;
+        return {
+            period_days: days,
+            total_searches: totalSearches,
+            trend: trend.map(t => ({ day: t.day, count: Number(t.count) })),
+            peak_hours: Array.from({ length: 24 }, (_, h) => ({
+                hour: h,
+                count: Number(peakHours.find(p => Number(p.hour) === h)?.count ?? 0),
+            })),
+            top_queries: topQueries.map(q => ({ query: q.query, count: Number(q.count) })),
+            zero_result_queries: zeroResultQueries.map(q => ({ query: q.query, count: Number(q.count) })),
+            growth: {
+                current_period: currentPeriodCount,
+                previous_period: previousPeriodCount,
+                percent: growthPct,
+            },
+            active_users: {
+                now: activeNow,
+                today: activeToday,
+            },
+            heatmap: heatPoints.map(p => [p.latitude, p.longitude, 1]),
+        };
+    }
     async getStats() {
         const [totalPharmacies, activePharmacies, totalMedicines, totalStockItems, lowStockCount, recentLogs, topMedicines,] = await Promise.all([
             this.prisma.pharmacy.count(),
@@ -60,6 +127,51 @@ let DashboardService = class DashboardService {
                 webhookLogs: { orderBy: { createdAt: 'desc' }, take: 20, select: { id: true, eventType: true, status: true, createdAt: true, errorMsg: true } },
             },
         });
+    }
+    async getPharmacyStock(id, page = 1, limit = 50, search = '', category = '', lowStock = false) {
+        const pharmacy = await this.prisma.pharmacy.findUnique({
+            where: { id },
+            select: { id: true, name: true, slug: true },
+        });
+        if (!pharmacy)
+            return null;
+        const where = { pharmacyId: id };
+        if (lowStock)
+            where.quantity = { gt: 0, lte: 10 };
+        const masterWhere = {};
+        if (search) {
+            masterWhere.OR = [
+                { canonicalName: { contains: search } },
+                { barcode: { contains: search } },
+            ];
+        }
+        if (category)
+            masterWhere.category = category;
+        if (Object.keys(masterWhere).length)
+            where.masterMedicine = masterWhere;
+        const [items, total, categories] = await Promise.all([
+            this.prisma.pharmacyStock.findMany({
+                where,
+                skip: (page - 1) * limit,
+                take: limit,
+                include: { masterMedicine: true },
+                orderBy: { masterMedicine: { canonicalName: 'asc' } },
+            }),
+            this.prisma.pharmacyStock.count({ where }),
+            this.prisma.pharmacyStock.findMany({
+                where: { pharmacyId: id },
+                select: { masterMedicine: { select: { category: true } } },
+                distinct: ['masterMedicineId'],
+            }),
+        ]);
+        return {
+            pharmacy,
+            data: items,
+            categories: [...new Set(categories.map(c => c.masterMedicine.category).filter(Boolean))],
+            total,
+            page,
+            total_pages: Math.ceil(total / limit),
+        };
     }
     async createPharmacy(data) {
         const crypto = await Promise.resolve().then(() => require('crypto'));

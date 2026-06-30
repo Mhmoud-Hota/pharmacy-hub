@@ -21,9 +21,15 @@ let DashboardController = class DashboardController {
         this.svc = svc;
     }
     getStats() { return this.svc.getStats(); }
+    getAnalytics(days = '30') {
+        return this.svc.getAnalytics(+days);
+    }
     getPharmacies() { return this.svc.getPharmacies(); }
     getPharmacy(id) { return this.svc.getPharmacyDetail(id); }
     getPharmacyStats(id) { return this.svc.getPharmacyStats(id); }
+    getPharmacyStock(id, page = '1', limit = '50', search = '', category = '', lowStock = '') {
+        return this.svc.getPharmacyStock(id, +page, +limit, search, category, lowStock === 'true');
+    }
     createPharmacy(body) { return this.svc.createPharmacy(body); }
     updatePharmacy(id, body) {
         return this.svc.updatePharmacy(id, body);
@@ -71,6 +77,13 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], DashboardController.prototype, "getStats", null);
 __decorate([
+    (0, common_1.Get)('analytics'),
+    __param(0, (0, common_1.Query)('days')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], DashboardController.prototype, "getAnalytics", null);
+__decorate([
     (0, common_1.Get)('pharmacies'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
@@ -90,6 +103,18 @@ __decorate([
     __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", void 0)
 ], DashboardController.prototype, "getPharmacyStats", null);
+__decorate([
+    (0, common_1.Get)('pharmacies/:id/stock'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Query)('page')),
+    __param(2, (0, common_1.Query)('limit')),
+    __param(3, (0, common_1.Query)('search')),
+    __param(4, (0, common_1.Query)('category')),
+    __param(5, (0, common_1.Query)('low_stock')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object, Object, Object, Object, Object]),
+    __metadata("design:returntype", void 0)
+], DashboardController.prototype, "getPharmacyStock", null);
 __decorate([
     (0, common_1.Post)('pharmacies'),
     __param(0, (0, common_1.Body)()),

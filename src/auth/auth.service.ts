@@ -23,7 +23,7 @@ export class AuthService {
     private readonly jwt:        JwtService,
   ) {}
 
-  // ── 1. تسجيل + إرسال OTP ───────────────────────────────────────────────────
+  // ── 1. تسجيل مباشر (بدون OTP مؤقتاً) ────────────────────────────────────
   async register(dto: RegisterDto) {
     const exists = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
     if (exists) {
@@ -38,14 +38,19 @@ export class AuthService {
         phone:        dto.phone,
         password:     hashed,
         profileImage: dto.profileImage ?? null,
-        isVerified:   false,
+        isVerified:   true,   // مفعّل مباشرة بدون OTP
       },
     });
 
-    await this.authentica.sendOtp(dto.phone, dto.method ?? OtpMethod.SMS);
-    this.logger.log(`[Register] User #${user.id} → ${dto.phone}`);
+    const tokens = await this._generateTokens(user);
+    this.logger.log(`[Register] User #${user.id} → ${dto.phone} (OTP disabled)`);
 
-    return { success: true, message: 'تم إنشاء الحساب، أدخل رمز OTP للتحقق', user_id: user.id };
+    return {
+      success: true,
+      message: 'تم إنشاء الحساب بنجاح',
+      ...tokens,
+      user: this._formatUser({ ...user, isVerified: true }),
+    };
   }
 
   // ── 2. تسجيل الدخول بكلمة مرور ────────────────────────────────────────────

@@ -16,6 +16,16 @@ export class DashboardController {
   @Get('stats')
   getStats() { return this.svc.getStats(); }
 
+  /**
+   * GET /api/dashboard/analytics?days=30
+   * اتجاهات البحث، ساعات الذروة، الأكثر بحثاً، معدل النمو،
+   * المستخدمون النشطون (الآن / اليوم)، ونقاط لخريطة حرارية
+   */
+  @Get('analytics')
+  getAnalytics(@Query('days') days = '30') {
+    return this.svc.getAnalytics(+days);
+  }
+
   // ── PHARMACIES ─────────────────────────────────────────────────────────────
   @Get('pharmacies')
   getPharmacies() { return this.svc.getPharmacies(); }
@@ -25,6 +35,22 @@ export class DashboardController {
 
   @Get('pharmacies/:id/stats')
   getPharmacyStats(@Param('id', ParseIntPipe) id: number) { return this.svc.getPharmacyStats(id); }
+
+  /**
+   * GET /api/dashboard/pharmacies/:id/stock
+   * مخزون صيدلية واحدة مع بحث + فلتر تصنيف + فلتر مخزون منخفض + ترقيم صفحات
+   */
+  @Get('pharmacies/:id/stock')
+  getPharmacyStock(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('page')     page     = '1',
+    @Query('limit')    limit    = '50',
+    @Query('search')   search   = '',
+    @Query('category') category = '',
+    @Query('low_stock') lowStock = '',
+  ) {
+    return this.svc.getPharmacyStock(id, +page, +limit, search, category, lowStock === 'true');
+  }
 
   @Post('pharmacies')
   createPharmacy(@Body() body: any) { return this.svc.createPharmacy(body); }

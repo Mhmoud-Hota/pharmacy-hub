@@ -18,10 +18,17 @@ const swagger_1 = require("@nestjs/swagger");
 const inventory_service_1 = require("./inventory.service");
 const geo_search_service_1 = require("./geo-search.service");
 const search_medicine_dto_1 = require("./dto/search-medicine.dto");
+const prisma_service_1 = require("../database/prisma.service");
 let InventoryController = class InventoryController {
-    constructor(inventoryService, geoSearchService) {
+    constructor(inventoryService, geoSearchService, prisma) {
         this.inventoryService = inventoryService;
         this.geoSearchService = geoSearchService;
+        this.prisma = prisma;
+    }
+    logSearch(query, resultsCount, lat, lng) {
+        this.prisma.searchLog
+            .create({ data: { query, resultsCount, latitude: lat ?? null, longitude: lng ?? null } })
+            .catch(() => { });
     }
     async findMedicine(query) {
         if (!query.q || query.q.trim().length < 2) {
@@ -36,6 +43,7 @@ let InventoryController = class InventoryController {
             ? { latitude: query.lat, longitude: query.lng }
             : undefined;
         const results = await this.geoSearchService.searchMedicineNearby(query.q.trim(), userLocation, query.radius ?? 0, query.only_available ?? true);
+        this.logSearch(query.q.trim(), results.length, query.lat, query.lng);
         return {
             query: query.q,
             user_location: userLocation ?? null,
@@ -45,7 +53,11 @@ let InventoryController = class InventoryController {
         };
     }
     getSummary() { return this.inventoryService.getSummary(); }
-    search(q) { return this.inventoryService.searchMedicine(q ?? ''); }
+    async search(q) {
+        const result = await this.inventoryService.searchMedicine(q ?? '');
+        this.logSearch(q ?? '', Array.isArray(result) ? result.length : 0);
+        return result;
+    }
     getLowStock(threshold, pharmacySlug) {
         return this.inventoryService.getLowStock(threshold ? parseInt(threshold) : 10, pharmacySlug);
     }
@@ -98,7 +110,7 @@ __decorate([
     __param(0, (0, common_1.Query)('q')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], InventoryController.prototype, "search", null);
 __decorate([
     (0, common_1.Get)('low-stock'),
@@ -153,6 +165,7 @@ exports.InventoryController = InventoryController = __decorate([
     (0, swagger_1.ApiTags)('Inventory'),
     (0, common_1.Controller)('inventory'),
     __metadata("design:paramtypes", [inventory_service_1.InventoryService,
-        geo_search_service_1.GeoSearchService])
+        geo_search_service_1.GeoSearchService,
+        prisma_service_1.PrismaService])
 ], InventoryController);
 //# sourceMappingURL=inventory.controller.js.map

@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════════
    DESIGN TOKENS
@@ -477,6 +478,9 @@ td { padding: 11px 14px; vertical-align: middle; }
       <button class="nav-item" onclick="navigate('search-stats')">
         <span class="nav-icon">📊</span> إحصائيات البحث
       </button>
+      <button class="nav-item" onclick="navigate('analytics')">
+        <span class="nav-icon">📈</span> تحليلات الاستخدام
+      </button>
       <button class="nav-item" onclick="navigate('settings')">
         <span class="nav-icon">⚙️</span> الإعدادات
       </button>
@@ -905,6 +909,49 @@ td { padding: 11px 14px; vertical-align: middle; }
       </div>
     </div>
 
+    <!-- ══════════ PAGE: USAGE ANALYTICS ══════════ -->
+    <div class="page" id="page-analytics">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <select id="analytics-period" onchange="loadAnalytics()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:13px">
+          <option value="7">آخر 7 أيام</option>
+          <option value="30" selected>آخر 30 يوم</option>
+          <option value="90">آخر 90 يوم</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadAnalytics()">🔄 تحديث</button>
+      </div>
+
+      <div id="analytics-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div class="page-loader"><div class="spinner"></div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><div class="card-title">📈 اتجاه طلبات البحث</div></div>
+        <div id="analytics-trend-chart" style="padding-top:12px"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">🕐 ساعات الذروة</div></div>
+          <div id="analytics-peak-hours" style="padding-top:12px"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">🗺️ خريطة حرارية لمواقع البحث</div></div>
+          <div id="analytics-heatmap" style="height:260px;border-radius:10px;overflow:hidden"></div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">🔍 الأكثر بحثاً</div></div>
+          <div id="analytics-top-queries" style="padding-top:8px"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">⚠️ بحث بلا نتائج (فرص ضائعة)</div></div>
+          <div id="analytics-zero-queries" style="padding-top:8px"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="page" id="page-settings">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <!-- System Info -->
@@ -1165,7 +1212,7 @@ const PAGE_TITLES = {
   overview:'نظرة عامة', users:'المستخدمون', pharmacies:'الصيدليات',
   'pharmacy-detail':'تفاصيل الصيدلية', map:'الخريطة',
   medicines:'الأدوية', lowstock:'مخزون منخفض',
-  webhooks:'سجل الأحداث', backup:'النسخ الاحتياطي', 'search-stats':'إحصائيات البحث', settings:'الإعدادات',
+  webhooks:'سجل الأحداث', backup:'النسخ الاحتياطي', 'search-stats':'إحصائيات البحث', 'analytics':'تحليلات الاستخدام', settings:'الإعدادات',
 };
 
 function navigate(page, params={}) {
@@ -1198,6 +1245,7 @@ function loadPageData(page, params={}) {
     case 'webhooks':         loadWebhooks(1); break;
     case 'backup':           loadBackupPage(); break;
     case 'search-stats':     loadSearchStats(); break;
+    case 'analytics':        loadAnalytics(); break;
     case 'settings':         loadSettings(); break;
   }
 }
@@ -1611,7 +1659,52 @@ async function loadPharmacyDetail(id) {
   try {
     const [ph, stats] = await Promise.all([api(`/pharmacies/${id}`), api(`/pharmacies/${id}/stats`)]);
     renderPharmacyDetail(ph, stats);
+    loadPharmacyStockTable(id, 1);
   } catch(e) {}
+}
+
+/* ════════════════════════════════════════
+   PHARMACY STOCK TABLE (per-pharmacy, paginated)
+════════════════════════════════════════ */
+async function loadPharmacyStockTable(id, page = 1) {
+  const search   = document.getElementById('ph-stock-search')?.value || '';
+  const category = document.getElementById('ph-stock-cat')?.value || '';
+  const lowOnly  = document.getElementById('ph-stock-low')?.checked || false;
+
+  const tbody = document.getElementById('ph-stock-tbody');
+  tbody.innerHTML = '<tr><td colspan="5"><div class="page-loader"><div class="spinner"></div></div></td></tr>';
+
+  try {
+    const qs = new URLSearchParams({
+      page, limit: 50, search, category,
+      low_stock: lowOnly ? 'true' : '',
+    });
+    const res = await api(`/pharmacies/${id}/stock?${qs}`);
+
+    // املأ قائمة التصنيفات مرة واحدة (أول تحميل فقط)
+    const catSelect = document.getElementById('ph-stock-cat');
+    if (catSelect && catSelect.options.length <= 1 && res.categories?.length) {
+      catSelect.innerHTML = '<option value="">كل التصنيفات</option>' +
+        res.categories.map(c => `<option value="${c}">${c}</option>`).join('');
+      catSelect.value = category;
+    }
+
+    document.getElementById('ph-stock-count').textContent = `${res.total.toLocaleString()} صنف`;
+
+    tbody.innerHTML = res.data.length ? res.data.map(s => `
+      <tr>
+        <td style="font-size:12px;font-weight:500">${s.masterMedicine?.canonicalName || '—'}</td>
+        <td class="td-mono" style="font-size:11px">${s.masterMedicine?.barcode || '—'}</td>
+        <td><span class="badge ${s.quantity<=5?'badge-red':s.quantity<=20?'badge-amber':'badge-green'}">${s.quantity}</span></td>
+        <td class="td-mono">${s.price ? Number(s.price).toFixed(2) : '—'}</td>
+        <td style="font-size:11px;color:${isExpiringSoon(s.expiryDate)?'var(--danger)':'var(--text2)'}">${formatDate(s.expiryDate)}</td>
+      </tr>
+    `).join('') : '<tr><td colspan="5"><div class="empty"><p>لا توجد نتائج</p></div></td></tr>';
+
+    renderPagination('ph-stock-pagination', res.page, res.total_pages || 1, p => loadPharmacyStockTable(id, p));
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty"><p>تعذّر تحميل المخزون</p></div></td></tr>';
+  }
 }
 
 function renderPharmacyDetail(ph, stats) {
@@ -1645,22 +1738,29 @@ function renderPharmacyDetail(ph, stats) {
     </div>
     <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px">
       <div class="card">
-        <div class="card-header"><div class="card-title">المخزون الحالي</div></div>
+        <div class="card-header">
+          <div class="card-title">المخزون الحالي</div>
+          <span id="ph-stock-count" style="font-size:12px;color:var(--text2)"></span>
+        </div>
+        <div style="display:flex;gap:8px;margin:4px 0 14px;flex-wrap:wrap">
+          <div class="search-global" style="max-width:260px">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="ابحث بالاسم أو الباركود..." id="ph-stock-search" oninput="debounce(()=>loadPharmacyStockTable(${ph.id},1), 400)()"/>
+          </div>
+          <select class="form-input form-select" style="width:150px" id="ph-stock-cat" onchange="loadPharmacyStockTable(${ph.id},1)">
+            <option value="">كل التصنيفات</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);white-space:nowrap">
+            <input type="checkbox" id="ph-stock-low" onchange="loadPharmacyStockTable(${ph.id},1)"/> مخزون منخفض فقط
+          </label>
+        </div>
         <div class="table-wrap" style="border:none">
           <table>
-            <thead><tr><th>الدواء</th><th>الكمية</th><th>السعر</th><th>الانتهاء</th></tr></thead>
-            <tbody>
-              ${ph.stocks?.map(s=>`
-                <tr>
-                  <td style="font-size:12px;font-weight:500">${s.masterMedicine?.canonicalName||'—'}</td>
-                  <td><span class="badge ${s.quantity<=5?'badge-red':s.quantity<=20?'badge-amber':'badge-green'}">${s.quantity}</span></td>
-                  <td class="td-mono">${s.price?Number(s.price).toFixed(2):'—'}</td>
-                  <td style="font-size:11px;color:${isExpiringSoon(s.expiryDate)?'var(--danger)':'var(--text2)'}">${formatDate(s.expiryDate)}</td>
-                </tr>
-              `).join('')||'<tr><td colspan="4"><div class="empty"><p>لا مخزون</p></div></td></tr>'}
-            </tbody>
+            <thead><tr><th>الدواء</th><th>الباركود</th><th>الكمية</th><th>السعر</th><th>الانتهاء</th></tr></thead>
+            <tbody id="ph-stock-tbody"><tr><td colspan="5"><div class="page-loader"><div class="spinner"></div></div></td></tr></tbody>
           </table>
         </div>
+        <div class="pagination" id="ph-stock-pagination"></div>
       </div>
       <div class="card">
         <div class="card-header"><div class="card-title">آخر الأحداث</div></div>
@@ -2365,6 +2465,88 @@ async function submitSqliteImport() {
     btn.disabled = false;
     btn.textContent = '🗄️ بدء استيراد SQLite';
     setTimeout(() => { pwrap.style.display = 'none'; pbar.style.width='0%'; pbar.style.background='var(--accent2)'; }, 3000);
+  }
+}
+
+/* ════════════════════════════════════════
+   USAGE ANALYTICS (بحث المستخدمين + نشاط + نمو + خريطة حرارية)
+════════════════════════════════════════ */
+let analyticsMapInst = null;
+let analyticsHeatLayer = null;
+async function loadAnalytics() {
+  const days = document.getElementById('analytics-period')?.value || 30;
+  try {
+    const d = await fetch(API + `/analytics?days=${days}`).then(r => r.json());
+
+    const growthUp = d.growth.percent >= 0;
+    document.getElementById('analytics-summary').innerHTML = [
+      { icon:'🟢', val: d.active_users.now,                 label:'نشط الآن (آخر 5 د)',      color:'var(--success)' },
+      { icon:'👤', val: d.active_users.today,               label:'نشط اليوم',               color:'var(--accent)' },
+      { icon:'🔍', val: d.total_searches?.toLocaleString(), label:`طلبات بحث (إجمالي)`,       color:'var(--purple)' },
+      { icon: growthUp?'📈':'📉', val: `${growthUp?'+':''}${d.growth.percent}%`, label:`النمو مقابل الفترة السابقة`, color: growthUp?'var(--success)':'var(--danger)' },
+    ].map(c => `
+      <div class="stat-card" style="padding:16px">
+        <div style="font-size:22px;margin-bottom:6px">${c.icon}</div>
+        <div style="font-size:24px;font-weight:700;color:${c.color}">${c.val ?? 0}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${c.label}</div>
+      </div>`).join('');
+
+    // ── اتجاه البحث (SVG line chart خفيف بدون مكتبات) ──────────────────────
+    const trend = d.trend || [];
+    const maxT  = Math.max(1, ...trend.map(t => t.count));
+    const W = 760, H = 160, pad = 24;
+    const stepX = trend.length > 1 ? (W - pad*2) / (trend.length - 1) : 0;
+    const points = trend.map((t,i) => {
+      const x = pad + i*stepX;
+      const y = H - pad - (t.count / maxT) * (H - pad*2);
+      return `${x},${y}`;
+    }).join(' ');
+    document.getElementById('analytics-trend-chart').innerHTML = trend.length ? `
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:180px">
+        <polyline points="${points}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+        ${trend.map((t,i) => `<circle cx="${pad+i*stepX}" cy="${H-pad-(t.count/maxT)*(H-pad*2)}" r="3" fill="var(--accent)"><title>${t.day}: ${t.count}</title></circle>`).join('')}
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:4px">
+        <span>${trend[0]?.day ?? ''}</span><span>${trend[trend.length-1]?.day ?? ''}</span>
+      </div>` : '<div class="empty"><p>لا توجد بيانات بحث بعد لهذه الفترة</p></div>';
+
+    // ── ساعات الذروة (bar chart) ────────────────────────────────────────────
+    const peak = d.peak_hours || [];
+    const maxH = Math.max(1, ...peak.map(p => p.count));
+    document.getElementById('analytics-peak-hours').innerHTML = `
+      <div style="display:flex;align-items:flex-end;gap:3px;height:140px">
+        ${peak.map(p => `
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">
+            <div style="width:100%;background:var(--accent2);border-radius:3px 3px 0 0;height:${Math.max(2, Math.round(p.count/maxH*110))}px" title="${p.hour}:00 — ${p.count}"></div>
+            <span style="font-size:8px;color:var(--muted);margin-top:4px">${p.hour}</span>
+          </div>`).join('')}
+      </div>`;
+
+    // ── قائمة الأكثر بحثاً / بلا نتائج ──────────────────────────────────────
+    const renderQList = (list, badgeClass) => list?.length ? list.map((q,i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <span style="color:var(--muted);min-width:18px;text-align:center">${i+1}</span>
+        <div style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${q.query}</div>
+        <span class="badge ${badgeClass}" style="font-size:11px">${q.count}</span>
+      </div>`).join('') : '<div style="padding:20px;text-align:center;color:var(--muted)">لا توجد بيانات</div>';
+
+    document.getElementById('analytics-top-queries').innerHTML  = renderQList(d.top_queries, 'badge-blue');
+    document.getElementById('analytics-zero-queries').innerHTML = renderQList(d.zero_result_queries, 'badge-red');
+
+    // ── خريطة حرارية لمواقع البحث ───────────────────────────────────────────
+    if (!analyticsMapInst) {
+      analyticsMapInst = L.map('analytics-heatmap', { zoomControl:false }).setView([18, 33], 6);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution:'© CartoDB', maxZoom:19 }).addTo(analyticsMapInst);
+    }
+    if (analyticsHeatLayer) analyticsMapInst.removeLayer(analyticsHeatLayer);
+    if (d.heatmap?.length && window.L?.heatLayer) {
+      analyticsHeatLayer = L.heatLayer(d.heatmap, { radius: 20, blur: 18 }).addTo(analyticsMapInst);
+      analyticsMapInst.fitBounds(L.latLngBounds(d.heatmap.map(p => [p[0], p[1]])), { padding:[20,20] });
+    }
+    setTimeout(() => analyticsMapInst.invalidateSize(), 100);
+
+  } catch(e) {
+    toast('تعذّر تحميل التحليلات', 'error');
   }
 }
 

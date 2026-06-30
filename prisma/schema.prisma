@@ -22,6 +22,7 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
   refreshToken String?  @map("refresh_token") // <--- أضف هذا السطر
+  lastActiveAt DateTime? @map("last_active_at") // آخر طلب موثّق (JWT) من المستخدم — أساس حساب "نشط الآن"
 
   @@map("users")
 }
@@ -120,4 +121,19 @@ model WebhookLog {
   createdAt      DateTime  @default(now())
 
   @@map("webhook_logs")
+}
+
+// ─── سجلّ طلبات البحث (لتحليلات الداشبورد: اتجاهات/ساعات ذروة/خرائط حرارية) ──
+model SearchLog {
+  id            Int      @id @default(autoincrement())
+  query         String
+  resultsCount  Int      @default(0) @map("results_count")
+  userId        Int?     @map("user_id")
+  latitude      Float?
+  longitude     Float?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([query])
+  @@map("search_logs")
 }

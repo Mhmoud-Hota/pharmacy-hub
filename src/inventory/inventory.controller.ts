@@ -7,6 +7,7 @@ import { ApiTags, ApiOperation, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { InventoryService } from './inventory.service';
 import { GeoSearchService } from './geo-search.service';
 import { SearchMedicineDto } from './dto/search-medicine.dto';
+import { PrismaService } from '../database/prisma.service';
 
 @ApiTags('Inventory')
 @Controller('inventory')
@@ -14,7 +15,15 @@ export class InventoryController {
   constructor(
     private readonly inventoryService: InventoryService,
     private readonly geoSearchService: GeoSearchService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  // تسجيل طلب بحث للتحليلات — لا يُنتظر (fire-and-forget) حتى لا يُبطئ الاستجابة
+  private logSearch(query: string, resultsCount: number, lat?: number, lng?: number) {
+    this.prisma.searchLog
+      .create({ data: { query, resultsCount, latitude: lat ?? null, longitude: lng ?? null } })
+      .catch(() => {});
+  }
 
   // ─── البحث الجغرافي عن دواء ───────────────────────────────────────────────
   // GET /inventory/find?q=flutab&lat=30.04&lng=31.23&radius=5
@@ -50,6 +59,9 @@ export class InventoryController {
       query.radius ?? 0,
       query.only_available ?? true,
     );
+
+    this.logSearch(query.q.trim(), results.length, query.lat, query.lng);
+
     return {
       query:         query.q,
       user_location: userLocation ?? null,
@@ -68,7 +80,11 @@ export class InventoryController {
   @Get('search')
   @ApiOperation({ summary: 'بحث بسيط عن دواء (بدون إحداثيات)' })
   @ApiQuery({ name: 'q' })
-  search(@Query('q') q: string) { return this.inventoryService.searchMedicine(q ?? ''); }
+  async search(@Query('q') q: string) {
+    const result = await this.inventoryService.searchMedicine(q ?? '');
+    this.logSearch(q ?? '', Array.isArray(result) ? result.length : 0);
+    return result;
+  }
 
   // ─── الأدوية التي كادت تنفد ───────────────────────────────────────────────
   @Get('low-stock')

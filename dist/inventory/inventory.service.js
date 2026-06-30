@@ -34,6 +34,7 @@ let InventoryService = class InventoryService {
                 take: limit,
                 include: {
                     stocks: {
+                        where: { quantity: { gt: 0 } },
                         include: { pharmacy: { select: { id: true, name: true, slug: true } } },
                         orderBy: { quantity: 'desc' },
                     },
@@ -83,9 +84,9 @@ let InventoryService = class InventoryService {
             return null;
         const { page, limit } = filters;
         const skip = (page - 1) * limit;
-        const stockWhere = { pharmacyId: pharmacy.id };
+        const stockWhere = { pharmacyId: pharmacy.id, quantity: { gt: 0 } };
         if (filters.lowStockThreshold !== undefined) {
-            stockWhere.quantity = { lte: filters.lowStockThreshold };
+            stockWhere.quantity = { gt: 0, lte: filters.lowStockThreshold };
         }
         const masterWhere = {};
         if (filters.barcode)
@@ -209,7 +210,7 @@ let InventoryService = class InventoryService {
         }));
     }
     async getLowStock(threshold = 10, pharmacySlug) {
-        const where = { quantity: { lte: threshold } };
+        const where = { quantity: { gt: 0, lte: threshold } };
         if (pharmacySlug) {
             const pharmacy = await this.prisma.pharmacy.findUnique({ where: { slug: pharmacySlug } });
             if (pharmacy)

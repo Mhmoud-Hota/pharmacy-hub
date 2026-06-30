@@ -22,6 +22,36 @@ export declare class DashboardController {
             total_qty: number;
         }[];
     }>;
+    getAnalytics(days?: string): Promise<{
+        period_days: number;
+        total_searches: number;
+        trend: {
+            day: string;
+            count: number;
+        }[];
+        peak_hours: {
+            hour: number;
+            count: number;
+        }[];
+        top_queries: {
+            query: string;
+            count: number;
+        }[];
+        zero_result_queries: {
+            query: string;
+            count: number;
+        }[];
+        growth: {
+            current_period: number;
+            previous_period: number;
+            percent: number;
+        };
+        active_users: {
+            now: number;
+            today: number;
+        };
+        heatmap: number[][];
+    }>;
     getPharmacies(): Promise<({
         stocks: {
             quantity: number;
@@ -105,6 +135,42 @@ export declare class DashboardController {
             eventType: string;
             status: string;
         }[];
+    }>;
+    getPharmacyStock(id: number, page?: string, limit?: string, search?: string, category?: string, lowStock?: string): Promise<{
+        pharmacy: {
+            name: string;
+            slug: string;
+            id: number;
+        };
+        data: ({
+            masterMedicine: {
+                id: number;
+                createdAt: Date;
+                updatedAt: Date;
+                barcode: string | null;
+                unit: string | null;
+                category: string | null;
+                canonicalName: string;
+                scientificName: string | null;
+                tabletsPerBox: number | null;
+            };
+        } & {
+            id: number;
+            updatedAt: Date;
+            pharmacyId: number;
+            price: import("@prisma/client/runtime/library").Decimal | null;
+            unit: string | null;
+            tabletsPerBox: number | null;
+            masterMedicineId: number;
+            localMedicineId: number | null;
+            quantity: number;
+            expiryDate: Date | null;
+            lastSyncAt: Date;
+        })[];
+        categories: string[];
+        total: number;
+        page: number;
+        total_pages: number;
     }>;
     createPharmacy(body: any): Promise<{
         api_key: string;
@@ -229,6 +295,7 @@ export declare class DashboardController {
             profileImage: string | null;
             isVerified: boolean;
             refreshToken: string | null;
+            lastActiveAt: Date | null;
         }[];
         total: number;
         page: number;
@@ -247,6 +314,7 @@ export declare class DashboardController {
         profileImage: string | null;
         isVerified: boolean;
         refreshToken: string | null;
+        lastActiveAt: Date | null;
     }>;
     createUser(body: {
         name: string;
@@ -262,6 +330,7 @@ export declare class DashboardController {
         profileImage: string | null;
         isVerified: boolean;
         refreshToken: string | null;
+        lastActiveAt: Date | null;
     }>;
     updateUser(id: number, body: any): Promise<{
         name: string;
@@ -273,6 +342,7 @@ export declare class DashboardController {
         profileImage: string | null;
         isVerified: boolean;
         refreshToken: string | null;
+        lastActiveAt: Date | null;
     }>;
     deleteUser(id: number): Promise<{
         success: boolean;

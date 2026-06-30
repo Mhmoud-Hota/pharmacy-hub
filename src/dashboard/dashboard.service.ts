@@ -7,8 +7,96 @@ export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
   // ══════════════════════════════════════════════════════════
-  // STATS
+  // ANALYTICS (تحليلات احترافية: اتجاهات بحث + ساعات ذروة + نمو + مستخدمون نشطون + خريطة حرارية)
   // ══════════════════════════════════════════════════════════
+  async getAnalytics(days = 30) {
+    const since      = new Date(Date.now() - days * 86400_000);
+    const prevSince  = new Date(Date.now() - days * 2 * 86400_000);
+    const fiveMinAgo = new Date(Date.now() - 5 * 60_000);
+
+    const [
+      trend, peakHours, topQueries, zeroResultQueries,
+      currentPeriodCount, previousPeriodCount,
+      activeNow, activeToday, heatPoints, totalSearches,
+    ] = await Promise.all([
+      // اتجاه البحث يومياً
+      this.prisma.$queryRaw<{ day: string; count: bigint }[]>`
+        SELECT DATE(created_at) AS day, COUNT(*) AS count
+        FROM search_logs
+        WHERE created_at >= ${since}
+        GROUP BY DATE(created_at)
+        ORDER BY day ASC`,
+
+      // ساعات الذروة (تجميع كل الأيام بحسب الساعة 0-23)
+      this.prisma.$queryRaw<{ hour: number; count: bigint }[]>`
+        SELECT HOUR(created_at) AS hour, COUNT(*) AS count
+        FROM search_logs
+        WHERE created_at >= ${since}
+        GROUP BY HOUR(created_at)
+        ORDER BY hour ASC`,
+
+      // الأكثر بحثاً
+      this.prisma.$queryRaw<{ query: string; count: bigint }[]>`
+        SELECT query, COUNT(*) AS count
+        FROM search_logs
+        WHERE created_at >= ${since} AND query != ''
+        GROUP BY query
+        ORDER BY count DESC
+        LIMIT 10`,
+
+      // عمليات بحث بلا نتائج (فرصة ضائعة — مهم لأي داشبورد احترافي)
+      this.prisma.$queryRaw<{ query: string; count: bigint }[]>`
+        SELECT query, COUNT(*) AS count
+        FROM search_logs
+        WHERE created_at >= ${since} AND results_count = 0 AND query != ''
+        GROUP BY query
+        ORDER BY count DESC
+        LIMIT 10`,
+
+      this.prisma.searchLog.count({ where: { createdAt: { gte: since } } }),
+      this.prisma.searchLog.count({ where: { createdAt: { gte: prevSince, lt: since } } }),
+
+      this.prisma.user.count({ where: { lastActiveAt: { gte: fiveMinAgo } } }),
+      this.prisma.user.count({ where: { lastActiveAt: { gte: new Date(Date.now() - 86400_000) } } }),
+
+      // نقاط لخريطة حرارية فعلية (lat/lng المُرسلة مع كل بحث)
+      this.prisma.searchLog.findMany({
+        where: { createdAt: { gte: since }, latitude: { not: null }, longitude: { not: null } },
+        select: { latitude: true, longitude: true },
+        take: 2000,
+      }),
+
+      this.prisma.searchLog.count(),
+    ]);
+
+    const growthPct = previousPeriodCount === 0
+      ? (currentPeriodCount > 0 ? 100 : 0)
+      : Math.round(((currentPeriodCount - previousPeriodCount) / previousPeriodCount) * 1000) / 10;
+
+    return {
+      period_days: days,
+      total_searches: totalSearches,
+      trend: trend.map(t => ({ day: t.day, count: Number(t.count) })),
+      peak_hours: Array.from({ length: 24 }, (_, h) => ({
+        hour: h,
+        count: Number(peakHours.find(p => Number(p.hour) === h)?.count ?? 0),
+      })),
+      top_queries: topQueries.map(q => ({ query: q.query, count: Number(q.count) })),
+      zero_result_queries: zeroResultQueries.map(q => ({ query: q.query, count: Number(q.count) })),
+      growth: {
+        current_period: currentPeriodCount,
+        previous_period: previousPeriodCount,
+        percent: growthPct,
+      },
+      active_users: {
+        now: activeNow,        // آخر 5 دقائق
+        today: activeToday,    // آخر 24 ساعة
+      },
+      heatmap: heatPoints.map(p => [p.latitude, p.longitude, 1]),
+    };
+  }
+
+
   async getStats() {
     const [
       totalPharmacies,
@@ -67,6 +155,64 @@ export class DashboardService {
         webhookLogs: { orderBy: { createdAt: 'desc' }, take: 20, select: { id: true, eventType: true, status: true, createdAt: true, errorMsg: true } },
       },
     });
+  }
+
+  /**
+   * GET /api/dashboard/pharmacies/:id/stock
+   * مخزون صيدلية واحدة، مع بحث وتصنيف وترقيم صفحات حقيقي
+   * (بخلاف getPharmacyDetail التي تكتفي بآخر 50 صنف بلا فلترة)
+   */
+  async getPharmacyStock(
+    id: number,
+    page = 1,
+    limit = 50,
+    search = '',
+    category = '',
+    lowStock = false,
+  ) {
+    const pharmacy = await this.prisma.pharmacy.findUnique({
+      where: { id },
+      select: { id: true, name: true, slug: true },
+    });
+    if (!pharmacy) return null;
+
+    const where: any = { pharmacyId: id };
+    if (lowStock) where.quantity = { gt: 0, lte: 10 };
+
+    const masterWhere: any = {};
+    if (search) {
+      masterWhere.OR = [
+        { canonicalName: { contains: search } },
+        { barcode:        { contains: search } },
+      ];
+    }
+    if (category) masterWhere.category = category;
+    if (Object.keys(masterWhere).length) where.masterMedicine = masterWhere;
+
+    const [items, total, categories] = await Promise.all([
+      this.prisma.pharmacyStock.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { masterMedicine: true },
+        orderBy: { masterMedicine: { canonicalName: 'asc' } },
+      }),
+      this.prisma.pharmacyStock.count({ where }),
+      this.prisma.pharmacyStock.findMany({
+        where: { pharmacyId: id },
+        select: { masterMedicine: { select: { category: true } } },
+        distinct: ['masterMedicineId'],
+      }),
+    ]);
+
+    return {
+      pharmacy,
+      data: items,
+      categories: [...new Set(categories.map(c => c.masterMedicine.category).filter(Boolean))],
+      total,
+      page,
+      total_pages: Math.ceil(total / limit),
+    };
   }
 
   async createPharmacy(data: {

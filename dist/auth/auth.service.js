@@ -36,12 +36,17 @@ let AuthService = AuthService_1 = class AuthService {
                 phone: dto.phone,
                 password: hashed,
                 profileImage: dto.profileImage ?? null,
-                isVerified: false,
+                isVerified: true,
             },
         });
-        await this.authentica.sendOtp(dto.phone, dto.method ?? auth_dto_1.OtpMethod.SMS);
-        this.logger.log(`[Register] User #${user.id} → ${dto.phone}`);
-        return { success: true, message: 'تم إنشاء الحساب، أدخل رمز OTP للتحقق', user_id: user.id };
+        const tokens = await this._generateTokens(user);
+        this.logger.log(`[Register] User #${user.id} → ${dto.phone} (OTP disabled)`);
+        return {
+            success: true,
+            message: 'تم إنشاء الحساب بنجاح',
+            ...tokens,
+            user: this._formatUser({ ...user, isVerified: true }),
+        };
     }
     async login(dto) {
         const user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });

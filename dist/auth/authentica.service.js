@@ -14,103 +14,73 @@ exports.AuthenticaService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const auth_dto_1 = require("./dto/auth.dto");
+const twilio = require('twilio');
 let AuthenticaService = AuthenticaService_1 = class AuthenticaService {
     constructor(config) {
         this.config = config;
         this.logger = new common_1.Logger(AuthenticaService_1.name);
-        this.apiUrl = 'https://api.easysendsms.app/bulksms';
-        this.otpStore = new Map();
         this.devMode = config.get('OTP_DEV_MODE') === 'true';
-        this.apiUsername = config.getOrThrow('EASYSENDSMS_USERNAME');
-        this.apiPassword = config.getOrThrow('EASYSENDSMS_PASSWORD');
-        this.senderName = config.get('EASYSENDSMS_SENDER') ?? 'MyApp';
+        const accountSid = config.getOrThrow('TWILIO_ACCOUNT_SID');
+        const authToken = config.getOrThrow('TWILIO_AUTH_TOKEN');
+        this.verifyServiceSid = config.getOrThrow('TWILIO_VERIFY_SERVICE_SID');
+        this.twilioClient = twilio(accountSid, authToken);
         if (this.devMode) {
-            this.logger.warn('⚠️  OTP_DEV_MODE=true — الكود يُطبع في الـ console بدلاً من الإرسال (للتطوير فقط)');
+            this.logger.warn('⚠️  OTP_DEV_MODE=true — OTP يُطبع في الـ console فقط');
         }
     }
     async sendOtp(phone, method = auth_dto_1.OtpMethod.SMS) {
-        const otp = this.generateOtp();
-        this.otpStore.set(phone, {
-            otp,
-            expiresAt: Date.now() + 10 * 60 * 1000,
-        });
         if (this.devMode) {
-            this.logger.warn(`🔑 [DEV] OTP للرقم ${phone} → ${otp}  (ينتهي بعد 10 دقائق)`);
+            this.logger.warn(`🔑 [DEV] OTP request للرقم ${phone} (لن يُرسل فعلياً)`);
             return;
         }
-        if (method === auth_dto_1.OtpMethod.WHATSAPP) {
-            this.logger.warn(`[EasySendSMS] WhatsApp غير مدعوم، سيُرسل SMS بدلاً منه`);
-        }
-        const message = `رمز التحقق الخاص بك: ${otp}\nصالح لمدة 10 دقائق.`;
-        const normalizedPhone = phone.replace(/^\+/, '').replace(/^00/, '');
-        const params = new URLSearchParams({
-            username: this.apiUsername,
-            password: this.apiPassword,
-            from: this.senderName,
-            to: normalizedPhone,
-            text: message,
-            type: '1',
-        });
-        this.logger.log(`[EasySendSMS] Sending OTP → ${phone}`);
-        let responseText;
+        const channel = method === auth_dto_1.OtpMethod.WHATSAPP ? 'whatsapp' : 'sms';
+        this.logger.log(`[Twilio Verify] Sending OTP → ${phone} via ${channel}`);
         try {
-            const response = await fetch(this.apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: params.toString(),
-            });
-            responseText = await response.text();
+            const verification = await this.twilioClient.verify.v2
+                .services(this.verifyServiceSid)
+                .verifications
+                .create({ to: phone, channel });
+            this.logger.log(`[Twilio Verify] ✅ Status: ${verification.status} → ${phone}`);
         }
         catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            this.logger.error(`[EasySendSMS] Network error: ${msg}`);
-            throw new common_1.ServiceUnavailableException('فشل إرسال رمز التحقق — خطأ في الشبكة');
+            this.logger.error(`[Twilio Verify] ❌ Error: ${err?.message} (code: ${err?.code})`);
+            throw this.mapTwilioError(err);
         }
-        this.logger.log(`[EasySendSMS] Response: ${responseText}`);
-        if (!responseText.startsWith('OK')) {
-            const errorCode = responseText.trim();
-            this.logger.error(`[EasySendSMS] Send failed → ${errorCode}`);
-            throw this.mapApiError(errorCode, phone);
-        }
-        this.logger.log(`[EasySendSMS] ✅ OTP sent → ${phone}`);
     }
     async verifyOtp(phone, otp) {
-        const stored = this.otpStore.get(phone);
-        if (!stored) {
-            this.logger.warn(`[OTP] لا يوجد OTP مخزّن للرقم ${phone}`);
-            return false;
+        if (this.devMode) {
+            const valid = /^\d{6}$/.test(otp.trim());
+            this.logger.warn(`🔑 [DEV] OTP verify للرقم ${phone}: ${valid ? '✅' : '❌'}`);
+            return valid;
         }
-        if (Date.now() > stored.expiresAt) {
-            this.otpStore.delete(phone);
-            this.logger.warn(`[OTP] منتهي الصلاحية للرقم ${phone}`);
-            return false;
+        this.logger.log(`[Twilio Verify] Checking OTP → ${phone}`);
+        try {
+            const result = await this.twilioClient.verify.v2
+                .services(this.verifyServiceSid)
+                .verificationChecks
+                .create({ to: phone, code: otp.trim() });
+            this.logger.log(`[Twilio Verify] Check status: ${result.status} → ${phone}`);
+            return result.status === 'approved';
         }
-        const valid = stored.otp === otp.trim();
-        if (valid)
-            this.otpStore.delete(phone);
-        this.logger.log(`[OTP] Verify للرقم ${phone}: ${valid ? '✅ صحيح' : '❌ خاطئ'}`);
-        return valid;
+        catch (err) {
+            this.logger.error(`[Twilio Verify] ❌ Check error: ${err?.message} (code: ${err?.code})`);
+            if (err?.code === 20404)
+                return false;
+            throw this.mapTwilioError(err);
+        }
     }
-    generateOtp() {
-        return Math.floor(100000 + Math.random() * 900000).toString();
-    }
-    mapApiError(code, phone) {
-        const errors = {
-            '1001': 'خطأ في إعدادات API — أحد المعاملات مفقود أو فارغ',
-            '1002': 'بيانات اعتماد EasySendSMS غير صحيحة (username/password)',
-            '1003': 'نوع الرسالة غير صالح',
-            '1004': 'نص الرسالة غير صالح',
-            '1005': `رقم الهاتف غير مقبول: ${phone}`,
-            '1006': `اسم المرسل غير مقبول: ${this.senderName}`,
-            '1007': 'رصيد EasySendSMS غير كافٍ — يرجى شحن الحساب',
-            '1008': 'خطأ داخلي في EasySendSMS — لا تُعد الإرسال',
-            '1009': 'خدمة EasySendSMS غير متاحة حالياً — لا تُعد الإرسال',
-        };
-        const message = errors[code] ?? `خطأ غير معروف من EasySendSMS (كود: ${code})`;
-        if (['1005', '1006', '1003', '1004'].includes(code)) {
-            return new common_1.BadRequestException(message);
+    mapTwilioError(err) {
+        const code = err?.code;
+        const msg = err?.message ?? 'خطأ غير معروف';
+        switch (code) {
+            case 60200: return new common_1.BadRequestException('رقم الهاتف غير صالح');
+            case 60203: return new common_1.BadRequestException('تجاوزت الحد الأقصى لمحاولات الإرسال — انتظر قليلاً');
+            case 60212: return new common_1.BadRequestException('رقم الهاتف محظور مؤقتاً بسبب Fraud Guard');
+            case 60605: return new common_1.ServiceUnavailableException('إرسال OTP للسودان محظور — تحقق من Geo Permissions في Twilio');
+            case 60410: return new common_1.ServiceUnavailableException('تم حظر الإرسال مؤقتاً بواسطة Fraud Guard');
+            case 20003: return new common_1.ServiceUnavailableException('بيانات Twilio غير صحيحة (Account SID / Auth Token)');
+            default: return new common_1.ServiceUnavailableException(`فشل إرسال رمز التحقق: ${msg}`);
         }
-        return new common_1.ServiceUnavailableException(message);
     }
 };
 exports.AuthenticaService = AuthenticaService;
